@@ -1,0 +1,24 @@
+{
+  "name": "music-bot",
+  "version": "0.1.0",
+  "description": "A music bot for Discord, built on top of eris.js",
+  "main": "src/bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CF12/music-bot.git"
+  },
+  "author": "CF12",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/CF12/music-bot/issues"
+  },
+  "homepage": "https://github.com/CF12/music-bot#readme",
+  "dependencies": {
+    "bluebird": "^3.4.6",
+    "eris": "^0.5.1",
+    "eventemitter3": "^2.0.2"
+  }
+}
