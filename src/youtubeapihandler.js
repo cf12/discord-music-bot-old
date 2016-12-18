@@ -60,7 +60,10 @@ module.exports = class YTApiHandler {
         else pageToken = undefined
 
         if (pageToken) this.getCompletePlaylist(playlistID, pageToken, callback)
-        if (!pageToken && callback) callback(this.resultPlaylist)
+        if (!pageToken && callback) {
+          callback(this.resultPlaylist)
+          this.resultPlaylist = []
+        }
       } else throw (err)
     })
   }
