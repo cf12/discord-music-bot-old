@@ -26,7 +26,7 @@ module.exports = class YTApiHandler {
 
   getPlaylist (playlistID, callback) {
     let options = {
-      url: this.options.base + '/playlistItems/?part=snippet,contentDetails&maxResults=50&playlistId=' + playlistID + '&key=' + this.apiKey,
+      url: this.options.base + '/playlistItems/?part=snippet&maxResults=50&playlistId=' + playlistID + '&key=' + this.apiKey,
       method: 'GET',
       dataType: 'json'
     }

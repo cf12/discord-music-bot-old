@@ -4,10 +4,12 @@ const fs = require('fs')
 const path = require('path')
 const ytdl = require('ytdl-core')
 const YouTubeAPIHandler = require('./youtubeapihandler')
+const mh = require('./messagehandler')
 
 // Load Files
 try {
   var cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'config.json')))
+  var blacklist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'blacklist.json')))
 } catch (err) {
   if (err) throw err
 }
@@ -34,12 +36,21 @@ bot.login(cfg.bot_token)
 
 // On: Bot ready
 bot.on('ready', () => {
-  console.log('BOT > Music Bot started')
-  bot.user.setGame('v0.1.0 - By CF12')
+  console.log('BOT >> Music Bot started')
+  bot.user.setGame('v0.2.3 - By CF12')
 })
 
 // On: Message Creation
 bot.on('message', (msg) => {
+  /*
+   * TODO: Create Skip command
+   * TODO: Fix $leave after a song has been played
+   * TODO: Radio Functionality
+   * TODO: Repeats and Shuffles
+   * TODO: Song Queue Showcase
+   * TODO: User and Song Blacklists
+   */
+
   // Cancels messages without pf or user is a bot
   if (msg.author.bot || !msg.content.startsWith(pf)) return
 
@@ -57,63 +68,43 @@ bot.on('message', (msg) => {
 
   // Command: DB
   if (cmd === 'DB') {
-    console.log(songQueue)
+    console.log(voiceChannel)
+    console.log(voiceConnection)
+    console.log(dispatcher)
+    console.log(volume)
   }
 
   // Command: Play from YouTube Link
   if (cmd === 'PLAY') {
     let sourceID
-    if (!member.voiceChannel) return mchannel.sendMessage('**ERROR >** User is not in a voice channel!')
-
-    if (args.length === 0) return mchannel.sendMessage('**INFO >** Adds a YouTube link to the playlist. Usage: *' + pf + 'play [url]*')
-    else if (args.length > 1) return mchannel.sendMessage('**ERROR >** Invalid usage! Usage: ' + pf + 'play [url]')
+    if (!member.voiceChannel) return mh.logChannel(mchannel, 'err', 'User is not in a voice channel!')
+    if (args.length === 0) return mh.logChannel(mchannel, 'info', 'Adds a YouTube link to the playlist. Usage: *' + pf + 'play [url]*')
+    if (args.length > 1) return mh.logChannel(mchannel, 'err', 'Invalid usage! Usage: ' + pf + 'play [url]')
+    if (blacklist.users.includes(member.id)) return mh.logChannel(mchannel, 'bl', 'User is blacklisted!')
 
     try {
       sourceID = parseYTUrl(args[0])
     } catch (err) {
-      console.log('ERROR > ' + err)
-      return mchannel.sendMessage('**ERROR >** Error while parsing URL. Please make sure the URL is a valid YouTube link.')
+      return mh.logChannel(mchannel, 'err', 'Error while parsing URL. Please make sure the URL is a valid YouTube link.')
     }
 
     if (sourceID.includes('p:')) {
       let playlistID = sourceID.substring(2)
-      console.log(playlistID)
       addPlaylist(playlistID, member, () => {
-        if (!voiceConnection) {
-          voiceConnect(member.voiceChannel)
-          .then((connection) => {
-            voiceConnection = connection
-            dispatcher = nextSong()
-            .on('end', () => {
-              songQueue.shift()
-              if (songQueue.length === 0) return voiceDisconnect()
-              nextSong()
-            })
-          })
-        }
+        mh.logChannel(mchannel, 'musinf', 'Playlist successfully added!')
+        if (!voiceConnection) voiceConnect(member.voiceChannel)
       })
       return
     }
 
     addSong(sourceID, msg.member, false, () => {
-      if (!voiceConnection) {
-        voiceConnect(member.voiceChannel)
-        .then((connection) => {
-          voiceConnection = connection
-          dispatcher = nextSong()
-          .on('end', () => {
-            songQueue.shift()
-            if (songQueue.length === 0) return voiceDisconnect()
-            nextSong()
-          })
-        })
-      }
+      if (!voiceConnection) voiceConnect(member.voiceChannel)
     })
   }
 
   // Command: Leave Voice Channel
   if (cmd === 'LEAVE') {
-    if (!voiceConnection) return mchannel.sendMessage('**ERROR >** The bot is not in a voice channel!')
+    if (!voiceConnection) return mh.logChannel(mchannel, 'err', 'The bot is not in a voice channel!')
     songQueue = []
     dispatcher.end()
     voiceConnection = undefined
@@ -121,12 +112,12 @@ bot.on('message', (msg) => {
 
   // Command: Volume Control
   if (cmd === 'VOLUME') {
-    if (args.length === 0) return mchannel.sendMessage('**INFO >** Sets the volume of music. Usage: ' + pf + 'volume [1-100]')
+    if (args.length === 0) return mh.logChannel(mchannel, 'info', 'Sets the volume of music. Usage: ' + pf + 'volume [1-100]')
     if (args.length === 1 && args[0] <= 100 && args[0] >= 1) {
       volume = args[0] * 0.002
       if (dispatcher) dispatcher.setVolume(volume)
-      mchannel.sendMessage('**INFO >** Volume set to: ' + args[0])
-    } else mchannel.sendMessage('**ERROR >** Invalid usage! Usage: ' + pf + 'volume [1-100]')
+      mh.logChannel(mchannel, 'vol', 'Volume set to: ' + args[0])
+    } else mh.logChannel(mchannel, 'err', 'Invalid usage! Usage: ' + pf + 'volume [1-100]')
   }
 })
 
@@ -141,7 +132,7 @@ function parseYTUrl (url, callback) {
   if (url.includes('youtube.com') && url.includes('watch?v=')) videoID = url.split('watch?v=')[1].split('#')[0].split('&')[0]
   else if (url.includes('youtu.be')) videoID = url.split('be/')[1].split('?')[0]
   else if (url.includes('youtube.com') && url.includes('playlist?list=')) videoID = 'p:' + url.split('playlist?list=')[1]
-  else return undefined
+  else throw Error('Not a YouTube Link')
 
   if (callback) return callback(videoID)
   return videoID
@@ -149,28 +140,28 @@ function parseYTUrl (url, callback) {
 
 // Function: Adds song to queue
 function addSong (videoID, member, suppress, callback) {
-  if (!suppress) mchannel.sendMessage('**INFO >** Fetching video information...')
   yth.getVideo(videoID, (err, info) => {
-    if (err) return mchannel.sendMessage('**ERROR >** Error while parsing video(es). Please make sure the URL is valid.')
+    if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing video(es). Please make sure the URL is valid.')
+    if (!suppress) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
     let video = info.items[0]
+
     songQueue.push({
       video_ID: videoID,
       link: String('http://youtube.com/?v=' + videoID),
       requester: member.toString(),
       title: video.snippet.title,
-      duration: video.contentDetails.duration
+      duration: convertDuration(video.contentDetails.duration)
     })
 
-    if (!suppress) mchannel.sendMessage('**INFO >** Song successfully added to queue.')
     if (callback) callback()
   })
 }
 
 // Function: Queues an entire playlist
 function addPlaylist (playlistID, member, callback) {
-  mchannel.sendMessage('**INFO >** Fetching playlist information...')
+  mh.logChannel(mchannel, 'musinf', 'Fetching playlist information...')
   yth.getPlaylist(playlistID, (err, playlist) => {
-    if (err) return mchannel.sendMessage('**ERROR >** Error while parsing playlist URL. Please make sure the URL is valid.')
+    if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing playlist URL. Please make sure the URL is valid.')
 
     for (const index in playlist) {
       addSong(playlist[index].snippet.resourceId.videoId, member, true, () => {
@@ -184,23 +175,53 @@ function addPlaylist (playlistID, member, callback) {
 function nextSong () {
   let song = songQueue[0]
 
-  mchannel.sendMessage('**MUSIC >** __NOW PLAYING__: ' + song.title + ' - [' + song.duration + '] - requested by ' + song.requester)
+  mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: ' + song.title + ' - [' + song.duration + '] - requested by ' + song.requester)
+  mh.logConsole('info', 'Now streaming: ' + song.title)
   return voiceConnection.playStream((ytdl(song.link)), {
     'volume': volume
+  })
+  .on('end', () => {
+    songQueue.shift()
+    if (songQueue.length === 0) return voiceDisconnect()
+    dispatcher = nextSong()
   })
 }
 
 // Function Connects to Voice Channel
 function voiceConnect (channel) {
   voiceChannel = channel
-  console.log('INFO > Joining Voice Channel <' + voiceChannel.id + '>')
-  return channel.join()
+  channel.join()
+  .then((connection) => {
+    mh.logConsole('info', 'Joining Voice Channel <' + voiceChannel.id + '>')
+    voiceConnection = connection
+    dispatcher = nextSong()
+  })
 }
 
 // Function: Disconnect from Voice Channel
 function voiceDisconnect () {
-  console.log('INFO > Leaving Voice Channel <' + voiceChannel.id + '>')
-  mchannel.sendMessage('**INFO >** Queue ended. Disconnecting...')
+  mh.logConsole('info', 'Leaving Voice Channel <' + voiceChannel.id + '>')
+  mh.logChannel(mchannel, 'musinf', 'Queue ended. Disconnecting...')
 
   voiceConnection.disconnect()
+  voiceConnection = undefined
+}
+
+// Function: Convert Durations from ISO 8601
+function convertDuration (duration) {
+  let reptms = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/
+  let hours = 0
+  let minutes = 0
+  let seconds = 0
+
+  if (reptms.test(duration)) {
+    let matches = reptms.exec(duration)
+    if (matches[1]) hours = Number(matches[1])
+    if (matches[2]) minutes = Number(matches[2])
+    if (matches[3]) seconds = Number(matches[3]) - 1
+  }
+
+  if (hours >= 1) return (hours < 10 ? '0' + hours : hours) + ':' + (minutes < 10 ? '0' + minutes : minutes) + ':' + (seconds < 10 ? '0' + seconds : seconds)
+  if (minutes >= 1) return (minutes < 10 ? '0' + minutes : minutes) + ':' + (seconds < 10 ? '0' + seconds : seconds)
+  else return '00:' + (seconds < 10 ? '0' + seconds : seconds)
 }
