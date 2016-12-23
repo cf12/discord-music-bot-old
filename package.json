@@ -18,7 +18,6 @@
   "homepage": "https://github.com/CF12/music-bot#readme",
   "dependencies": {
     "discord.js": "^10.0.1",
-    "needle": "^1.4.2",
     "node-opus": "^0.2.4",
     "opusscript": "0.0.1",
     "req-fast": "^0.2.15",
