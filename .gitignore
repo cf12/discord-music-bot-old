@@ -36,6 +36,9 @@ jspm_packages
 # Optional REPL history
 .node_repl_history
 
+# Idea
+.idea
+
 # Custom settings
 config/config.json
 config/blacklist.json

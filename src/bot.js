@@ -1,3 +1,4 @@
+"use strict"
 // Import Requirements
 const DiscordJS = require('discord.js')
 const fs = require('fs')
@@ -10,6 +11,7 @@ const mh = require('./messagehandler')
 try {
   var cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'config.json')))
   var blacklist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'blacklist.json')))
+  var radiolist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'radio_playlists.json')))
 } catch (err) {
   if (err) throw err
 }
@@ -18,7 +20,7 @@ try {
 const bot = new DiscordJS.Client()
 const yth = new YouTubeAPIHandler(cfg.youtube_api_key)
 
-// Variable Decleration
+// Variable Declaration
 let pf = '$'
 let voiceConnection
 let voiceChannel
@@ -26,6 +28,8 @@ let dispatcher
 let songQueue = []
 let volume = 0.15
 let mchannel
+let radioMode = false
+let radioType
 
 // Init Bot
 bot.login(cfg.bot_token)
@@ -44,11 +48,11 @@ bot.on('ready', () => {
 bot.on('message', (msg) => {
   /*
    * TODO: Create Skip command
-   * TODO: Fix $leave after a song has been played
    * TODO: Radio Functionality
    * TODO: Repeats and Shuffles
    * TODO: Song Queue Showcase
    * TODO: User and Song Blacklists
+   * TODO: Temporary DJ's
    */
 
   // Cancels messages without pf or user is a bot
@@ -81,6 +85,7 @@ bot.on('message', (msg) => {
     if (args.length === 0) return mh.logChannel(mchannel, 'info', 'Adds a YouTube link to the playlist. Usage: *' + pf + 'play [url]*')
     if (args.length > 1) return mh.logChannel(mchannel, 'err', 'Invalid usage! Usage: ' + pf + 'play [url]')
     if (blacklist.users.includes(member.id)) return mh.logChannel(mchannel, 'bl', 'User is blacklisted!')
+    if (playlist) return mh.logChannel(mchannel, 'err', 'User is blacklisted!') // TODO: FIX THIS
 
     try {
       sourceID = parseYTUrl(args[0])
@@ -102,9 +107,39 @@ bot.on('message', (msg) => {
     })
   }
 
+  // Command: List Song Queue
+  if (cmd === 'QUEUE') {
+    if (songQueue.length === 0) return mh.logChannel(mchannel, 'info', 'Song Queue:\n```' + 'No songs have been queued yet. Use ' + pf + 'play [YouTube URL] to queue a song.' + '```')
+
+    let firstVideoTitle = songQueue[0].title
+    let firstVideoDuration = songQueue[0].duration
+    if (firstVideoTitle.length >= 60) firstVideoTitle = firstVideoTitle.slice(0, 55) + ' ...'
+    let queue = firstVideoTitle + ' '.repeat(60 - firstVideoTitle.length) + '|' + ' ' + firstVideoDuration + '\n'
+
+    for (let i = 1; i < songQueue.length; i++) {
+      let videoTitle = songQueue[i].title
+      let videoDuration = songQueue[i].duration
+
+      if (videoTitle.length >= 60) videoTitle = videoTitle.slice(0, 55) + ' ...'
+      if (queue.length > 1800) {
+        queue = queue + '...and ' + (songQueue.length - i) + ' more'
+        break
+      }
+
+      queue = queue + videoTitle + ' '.repeat(60 - videoTitle.length) + '|' + ' ' + videoDuration + '\n'
+    }
+
+    mh.logChannel(mchannel, 'info', 'Song Queue:\n```' + queue + '```')
+  }
+
   // Command: Leave Voice Channel
   if (cmd === 'LEAVE') {
     if (!voiceConnection) return mh.logChannel(mchannel, 'err', 'The bot is not in a voice channel!')
+    if (radioMode) {
+      radioMode = false
+      mh.logChannel(mchannel, 'musinf', 'Radio Mode has been toggled to: **OFF**')
+    }
+
     songQueue = []
     dispatcher.end()
     voiceConnection = undefined
@@ -118,6 +153,33 @@ bot.on('message', (msg) => {
       if (dispatcher) dispatcher.setVolume(volume)
       mh.logChannel(mchannel, 'vol', 'Volume set to: ' + args[0])
     } else mh.logChannel(mchannel, 'err', 'Invalid usage! Usage: ' + pf + 'volume [1-100]')
+  }
+
+  if (cmd === 'RADIO') {
+    console.log(args.length)
+    if (args[0].toUpperCase() === 'SET') {
+      if (args.length === 2) {
+        mh.logConsole('db', 'test')
+        if (voiceConnection) return mh.logChannel(mchannel, 'err', 'Bot cannot be in a voice channel while activating radio mode. Please disconnect the bot by using ' + pf + 'leave.')
+        if (!member.voiceChannel) return mh.logChannel(mchannel, 'err', 'User is not in a voice channel!')
+
+        radioMode = true
+        mh.logChannel(mchannel, 'musinf', 'Radio Mode has been toggled to: **ON**')
+
+        addPlaylist("PLUU1mC42CNXFYb8OtOsKslYb28TLoEIqL", msg.member, () => { voiceConnect(member.voiceChannel) })
+        return
+      }
+    }
+
+    if (args[0] === 'OFF' && args.length === 1) {
+      radioMode = false
+      mh.logChannel(mchannel, 'musinf', 'Radio Mode has been toggled to: **OFF**')
+
+      songQueue = []
+      dispatcher.end()
+      voiceConnection = undefined
+      return
+    }
   }
 })
 
@@ -142,7 +204,7 @@ function parseYTUrl (url, callback) {
 function addSong (videoID, member, suppress, callback) {
   yth.getVideo(videoID, (err, info) => {
     if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing video(es). Please make sure the URL is valid.')
-    if (!suppress) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
+    if (!suppress || !radioMode) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
     let video = info.items[0]
 
     songQueue.push({
@@ -159,7 +221,7 @@ function addSong (videoID, member, suppress, callback) {
 
 // Function: Queues an entire playlist
 function addPlaylist (playlistID, member, callback) {
-  mh.logChannel(mchannel, 'musinf', 'Fetching playlist information...')
+  if (!radioMode) mh.logChannel(mchannel, 'musinf', 'Fetching playlist information...')
   yth.getPlaylist(playlistID, (err, playlist) => {
     if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing playlist URL. Please make sure the URL is valid.')
 
@@ -173,16 +235,23 @@ function addPlaylist (playlistID, member, callback) {
 
 // Function: Plays next song
 function nextSong () {
-  let song = songQueue[0]
+  let song
+  if (radioMode) song = songQueue[Math.floor(Math.random(0, songQueue.length))]
+  else song = songQueue[0]
 
-  mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: ' + song.title + ' - [' + song.duration + '] - requested by ' + song.requester)
-  mh.logConsole('info', 'Now streaming: ' + song.title)
+  if (!radioMode) {
+    mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: ' + song.title + ' - [' + song.duration + '] - requested by ' + song.requester)
+    mh.logConsole('info', 'Now streaming: ' + song.title)
+  }
+
   return voiceConnection.playStream((ytdl(song.link)), {
     'volume': volume
   })
   .on('end', () => {
-    songQueue.shift()
-    if (songQueue.length === 0) return voiceDisconnect()
+    if (!radioMode) {
+      songQueue.shift()
+      if (songQueue.length === 0) return voiceDisconnect()
+    }
     dispatcher = nextSong()
   })
 }
