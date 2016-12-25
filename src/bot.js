@@ -132,13 +132,15 @@ bot.on('message', (msg) => {
 
   // Command: Skip Song
   if (cmd === 'SKIP') {
-    if (!voiceConnection) return mh.logChannel('The bot is not playing anything!')
+    if (!voiceConnection) return mh.logChannel(mchannel, 'err', 'The bot is not playing anything currently! Use **' + pf + 'play [url]** to queue a song.')
+    if (radioMode) return mh.logChannel(mchannel, 'err', 'Skip is unavailable in radio mode.')
     dispatcher.end()
   }
 
   // Command: Shows the currently playing song
   if (cmd === 'NP' || 'NOWPLAYING') {
-    if (!voiceConnection)
+    if (!voiceConnection) return mh.logChannel(mchannel, 'err', 'The bot is not playing anything currently! Use **' + pf + 'play [url]** to queue a song.')
+    mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: **' + songQueue[0].title + ' - [' + songQueue[0].duration + ']** - requested by ' + songQueue[0].requester)
   }
 
   // Command: Leave Voice Channel
