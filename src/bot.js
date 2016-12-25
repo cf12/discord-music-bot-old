@@ -45,10 +45,8 @@ bot.on('ready', () => {
 // On: Message Creation
 bot.on('message', (msg) => {
   /*
-   * TODO: Create Skip command
    * TODO: Radio Functionality
    * TODO: Repeats and Shuffles
-   * TODO: Song Queue Showcase
    * TODO: User and Song Blacklists
    * TODO: Temporary DJ's
    */
@@ -63,9 +61,14 @@ bot.on('message', (msg) => {
   let cmd = fullMsgArray[0].slice(1, fullMsgArray[0].length).toUpperCase()
   let args = fullMsgArray.slice(1, fullMsgArray.length)
 
+  // Command: Help
+  if (cmd === 'HELP') {
+
+  }
+
   // Command: Ping
   if (cmd === 'PING') {
-    msg.channel.sendMessage('**INFO > **Pong!')
+    mh.logChannel(mchannel, 'info', 'Pong!')
   }
 
   // Command: DB
@@ -74,6 +77,10 @@ bot.on('message', (msg) => {
     console.log(voiceConnection)
     console.log(dispatcher)
     console.log(volume)
+  }
+
+  if (cmd === 'XMAS') {
+    mchannel.sendMessage(':snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake:\n\n                   __**MERRY CHRISTMAS FAGS**__ \n\n:snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake: ')
   }
 
   // Command: Play from YouTube Link
@@ -138,7 +145,7 @@ bot.on('message', (msg) => {
   }
 
   // Command: Shows the currently playing song
-  if (cmd === 'NP' || 'NOWPLAYING') {
+  if (cmd === 'NP' || cmd === 'NOWPLAYING') {
     if (!voiceConnection) return mh.logChannel(mchannel, 'err', 'The bot is not playing anything currently! Use **' + pf + 'play [url]** to queue a song.')
     mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: **' + songQueue[0].title + ' - [' + songQueue[0].duration + ']** - requested by ' + songQueue[0].requester)
   }
@@ -167,31 +174,40 @@ bot.on('message', (msg) => {
   }
 
   if (cmd === 'RADIO') {
-    console.log(args.length, args)
     if (args[0].toUpperCase() === 'SET') {
       if (args.length === 2) {
         if (voiceConnection) return mh.logChannel(mchannel, 'err', 'Bot cannot be in a voice channel while activating radio mode. Please disconnect the bot by using ' + pf + 'leave.')
         if (!member.voiceChannel) return mh.logChannel(mchannel, 'err', 'User is not in a voice channel!')
-        if (!radiolist.keys(this).includes(args[1].toUpperCase())) return mh.logChannel(mchannel, 'err', 'Invalid station! Use **' + pf + 'radio list** to see a list of all the stations')
+        if (!radiolist.hasOwnProperty(args[1].toUpperCase())) return mh.logChannel(mchannel, 'err', 'Invalid station! Use **' + pf + 'radio list** to see a list of all the stations')
 
         radioMode = true
-        mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: Radio Station: **' + args[1] + '**')
-        addPlaylist(radiolist.get(args[1].toUpperCase()), msg.member, () => { voiceConnect(member.voiceChannel) })
+        mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: Radio Station - **' + args[1] + '**')
+        addPlaylist(radiolist[args[1].toUpperCase()], msg.member, () => { voiceConnect(member.voiceChannel) })
         return
       }
 
       return mh.logChannel(mchannel, 'err', 'Invalid arguments! Usage: **' + pf + 'radio set [station name]**')
     }
 
-    if (args[0].toUpperCase() === 'OFF' && args.length === 1) {
-      radioMode = false
-      mh.logChannel(mchannel, 'musinf', 'Radio Mode has been toggled to: **OFF**')
+    if (args[0].toUpperCase() === 'OFF') {
+      if (args.length === 1) {
+        radioMode = false
+        mh.logChannel(mchannel, 'musinf', 'Ending radio stream.')
 
-      songQueue = []
-      dispatcher.end()
-      voiceConnection = undefined
-      return
+        songQueue = []
+        dispatcher.end()
+        voiceConnection = undefined
+        return
+      }
+
+      return mh.logChannel(mchannel, 'err', 'Invalid arguments! Usage: **' + pf + 'radio off**')
     }
+
+    if (args[0].toUpperCase() === 'LIST') {
+      mh // TODO: Left off here
+    }
+
+    return mh.logChannel(mchannel, 'err', 'Invalid usage! For help, use **' + pf + 'radio help.** ')
   }
 })
 
@@ -216,7 +232,7 @@ function parseYTUrl (url, callback) {
 function addSong (videoID, member, suppress, callback) {
   yth.getVideo(videoID, (err, info) => {
     if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing video(es). Please make sure the URL is valid.')
-    if (!suppress || !radioMode) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
+    if (!suppress) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
     let video = info.items[0]
 
     songQueue.push({
@@ -239,7 +255,7 @@ function addPlaylist (playlistID, member, callback) {
 
     for (const index in playlist) {
       addSong(playlist[index].snippet.resourceId.videoId, member, true, () => {
-        if ((playlist[0] === playlist[index]) && (typeof callback === 'function')) callback()
+        if ((playlist[playlist.length - 1] === playlist[index]) && (typeof callback === 'function')) callback()
       })
     }
   })
@@ -248,7 +264,7 @@ function addPlaylist (playlistID, member, callback) {
 // Function: Plays next song
 function nextSong () {
   let song
-  if (radioMode) song = songQueue[Math.floor(Math.random(0, songQueue.length))]
+  if (radioMode) song = songQueue[Math.floor(Math.random() * songQueue.length)]
   else song = songQueue[0]
 
   if (!radioMode) {
