@@ -8,9 +8,9 @@ const mh = require('./messagehandler')
 
 // Load Files
 try {
-  var cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'config.json')))
-  var blacklist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'blacklist.json')))
-  var radiolist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'radio_playlists.json')))
+  var cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'config.json')), 'utf8')
+  var blacklist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'blacklist.json')), 'utf8')
+  var radiolist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'radio_playlists.json')), 'utf8')
 } catch (err) {
   if (err) throw err
 }
@@ -67,9 +67,8 @@ bot.on('message', (msg) => {
   }
 
   // Command: Ping
-  if (cmd === 'PING') {
-    mh.logChannel(mchannel, 'info', 'Pong!')
-  }
+  if (cmd === 'PING') mh.logChannel(mchannel, 'info', 'Pong!')
+  if (cmd === 'XMAS') mchannel.sendMessage(':snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake:\n\n                   __**MERRY CHRISTMAS FAGS**__ \n\n:snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake: ')
 
   // Command: DB
   if (cmd === 'DB') {
@@ -77,10 +76,6 @@ bot.on('message', (msg) => {
     console.log(voiceConnection)
     console.log(dispatcher)
     console.log(volume)
-  }
-
-  if (cmd === 'XMAS') {
-    mchannel.sendMessage(':snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake:\n\n                   __**MERRY CHRISTMAS FAGS**__ \n\n:snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake: ')
   }
 
   // Command: Play from YouTube Link
@@ -174,6 +169,10 @@ bot.on('message', (msg) => {
   }
 
   if (cmd === 'RADIO') {
+    if (args.length === 0) return mh.logChannel(mchannel, 'info', 'Controls the radio features of the bot. For more info, do: **' + pf + 'radio help**')
+    if (args[0].toUpperCase() === 'HELP') return mchannel.sendMessage('__Manual page for: **' + pf + 'radio**__\n**' + pf + 'radio help** - Shows this manual page\n**' + pf + 'radio list** - Displays a list of radio stations\n**' + pf + 'radio set [station]** - Sets the radio to the specified station\n**' + pf + 'radio off** - Deactivates the radio')
+    if (args[0].toUpperCase() === 'LIST') return mh.logChannel(mchannel, 'radioinf', '**Available Radio Stations:** ' + Object.keys(radiolist))
+
     if (args[0].toUpperCase() === 'SET') {
       if (args.length === 2) {
         if (voiceConnection) return mh.logChannel(mchannel, 'err', 'Bot cannot be in a voice channel while activating radio mode. Please disconnect the bot by using ' + pf + 'leave.')
@@ -181,7 +180,7 @@ bot.on('message', (msg) => {
         if (!radiolist.hasOwnProperty(args[1].toUpperCase())) return mh.logChannel(mchannel, 'err', 'Invalid station! Use **' + pf + 'radio list** to see a list of all the stations')
 
         radioMode = true
-        mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: Radio Station - **' + args[1] + '**')
+        mh.logChannel(mchannel, 'radioinf', 'NOW PLAYING: Radio Station - **' + args[1] + '**')
         addPlaylist(radiolist[args[1].toUpperCase()], msg.member, () => { voiceConnect(member.voiceChannel) })
         return
       }
@@ -192,7 +191,7 @@ bot.on('message', (msg) => {
     if (args[0].toUpperCase() === 'OFF') {
       if (args.length === 1) {
         radioMode = false
-        mh.logChannel(mchannel, 'musinf', 'Ending radio stream.')
+        mh.logChannel(mchannel, 'radioinf', 'Ending radio stream.')
 
         songQueue = []
         dispatcher.end()
@@ -203,12 +202,10 @@ bot.on('message', (msg) => {
       return mh.logChannel(mchannel, 'err', 'Invalid arguments! Usage: **' + pf + 'radio off**')
     }
 
-    if (args[0].toUpperCase() === 'LIST') {
-      mh // TODO: Left off here
-    }
-
     return mh.logChannel(mchannel, 'err', 'Invalid usage! For help, use **' + pf + 'radio help.** ')
   }
+
+  return mh.logChannel(mchannel, 'err', 'Invalid command! For a list of commands, do: **' + pf + 'help**')
 })
 
 /*

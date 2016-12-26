@@ -1,0 +1,100 @@
+{
+  "help": {
+    "info": {
+      "format": "help",
+      "description": "Shows the manual page for every command"
+    },
+
+    "sub": []
+  },
+
+  "ping": {
+    "info": {
+      "format": "ping",
+      "description": "Pings the bot"
+    },
+
+    "sub": []
+  },
+
+  "xmas": {
+    "info": {
+      "format": "xmas",
+      "description": "Limited Christmas Command"
+    },
+
+    "sub": []
+  },
+
+  "play": {
+    "info": {
+      "format": "play [url]",
+      "description": "Plays a YouTube link in the voice channel (Video / Playlist)"
+    },
+
+    "sub": []
+  },
+
+  "queue": {
+    "info": {
+      "format": "queue",
+      "description": "Displays the current queue of songs"
+    },
+
+    "sub": []
+  },
+
+  "skip": {
+    "info": {
+      "format": "skip",
+      "description": "Skips the current song"
+    },
+
+    "sub": []
+  },
+
+  "np": {
+    "info": {
+      "format": "np",
+      "description": "Shows the details of the currently playing song"
+    },
+
+    "sub": []
+  },
+
+  "leave": {
+    "info": {
+      "format": "leave",
+      "description": "Disconnects the bot from the voice channel, and clears the playlist"
+    },
+
+    "sub": []
+  },
+
+  "volume": {
+    "info": {
+      "format": "volume [1-100]",
+      "description": "Adjusts the volume of the song"
+    },
+
+    "sub": []
+  },
+
+  "radio": {
+    "info": {
+      "format": "radio",
+      "description": "Controls the radio functions of the bot"
+    },
+
+    "sub": [
+        {
+        "radio": {
+          "info": {
+            "format": "radio",
+            "description": "Controls the radio functions of the bot"
+          }
+        }
+      }
+    ]
+  },
+}
