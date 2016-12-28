@@ -9,6 +9,7 @@ const mh = require('./messagehandler')
 // Load Files
 try {
   var cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'config.json')), 'utf8')
+  var helpfile = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'help.json')), 'utf8')
   var blacklist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'blacklist.json')), 'utf8')
   var radiolist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'radio_playlists.json')), 'utf8')
 } catch (err) {
@@ -63,12 +64,18 @@ bot.on('message', (msg) => {
 
   // Command: Help
   if (cmd === 'HELP') {
+    let msg = '__Manual page for: **Everything**__\n'
+    for (let key in helpfile) {
+      msg += '**' + pf + key + '**' + ' - ' + helpfile[key].info.description + '\n'
+    }
 
+    mchannel.sendMessage(msg)
+    return
   }
 
   // Command: Ping
-  if (cmd === 'PING') mh.logChannel(mchannel, 'info', 'Pong!')
-  if (cmd === 'XMAS') mchannel.sendMessage(':snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake:\n\n                   __**MERRY CHRISTMAS FAGS**__ \n\n:snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake: ')
+  if (cmd === 'PING') return mh.logChannel(mchannel, 'info', 'Pong!')
+  if (cmd === 'XMAS') return mchannel.sendMessage(':snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake:\n\n                   __**MERRY CHRISTMAS FAGS**__ \n\n:snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake: ')
 
   // Command: DB
   if (cmd === 'DB') {
