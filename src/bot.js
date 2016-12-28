@@ -105,6 +105,8 @@ bot.on('message', (msg) => {
     addSong(sourceID, msg.member, false, () => {
       if (!voiceConnection) voiceConnect(member.voiceChannel)
     })
+
+    return
   }
 
   // Command: List Song Queue
@@ -130,6 +132,7 @@ bot.on('message', (msg) => {
     }
 
     mh.logChannel(mchannel, 'info', 'Song Queue:\n```' + queue + '```')
+    return
   }
 
   // Command: Skip Song
@@ -137,12 +140,14 @@ bot.on('message', (msg) => {
     if (!voiceConnection) return mh.logChannel(mchannel, 'err', 'The bot is not playing anything currently! Use **' + pf + 'play [url]** to queue a song.')
     if (radioMode) return mh.logChannel(mchannel, 'err', 'Skip is unavailable in radio mode.')
     dispatcher.end()
+    return
   }
 
   // Command: Shows the currently playing song
   if (cmd === 'NP' || cmd === 'NOWPLAYING') {
     if (!voiceConnection) return mh.logChannel(mchannel, 'err', 'The bot is not playing anything currently! Use **' + pf + 'play [url]** to queue a song.')
     mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: **' + songQueue[0].title + ' - [' + songQueue[0].duration + ']** - requested by ' + songQueue[0].requester)
+    return
   }
 
   // Command: Leave Voice Channel
@@ -156,6 +161,7 @@ bot.on('message', (msg) => {
     songQueue = []
     dispatcher.end()
     voiceConnection = undefined
+    return
   }
 
   // Command: Volume Control
@@ -166,6 +172,7 @@ bot.on('message', (msg) => {
       if (dispatcher) dispatcher.setVolume(volume)
       mh.logChannel(mchannel, 'vol', 'Volume set to: ' + args[0])
     } else mh.logChannel(mchannel, 'err', 'Invalid usage! Usage: ' + pf + 'volume [1-100]')
+    return
   }
 
   if (cmd === 'RADIO') {
