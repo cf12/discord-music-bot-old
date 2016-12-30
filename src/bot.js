@@ -293,7 +293,7 @@ function nextSong () {
       songQueue.shift()
       if (songQueue.length === 0) return voiceDisconnect()
     }
-    stream.end()
+    stream.destroy()
     dispatcher = nextSong()
   })
 }
