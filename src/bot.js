@@ -29,6 +29,7 @@ let songQueue = []
 let volume = 0.15
 let mchannel
 let radioMode = false
+let stream
 
 // Init Bot
 bot.login(cfg.bot_token)
@@ -283,7 +284,8 @@ function nextSong () {
     mh.logConsole('info', 'Now playing: ' + song.title)
   }
 
-  return voiceConnection.playStream((ytdl(song.link)), {
+  stream = ytdl(song.link)
+  return voiceConnection.playStream(stream, {
     'volume': volume
   })
   .on('end', () => {
@@ -291,6 +293,7 @@ function nextSong () {
       songQueue.shift()
       if (songQueue.length === 0) return voiceDisconnect()
     }
+    stream.end()
     dispatcher = nextSong()
   })
 }
