@@ -30,6 +30,7 @@ let volume = 0.15
 let mchannel
 let radioMode = false
 let stream
+let lastMsgTimestamp
 
 // Init Bot
 bot.login(cfg.bot_token)
@@ -51,6 +52,8 @@ bot.on('message', (msg) => {
    * TODO: Repeats and Shuffles
    * TODO: User and Song Blacklists
    * TODO: Temporary DJ's
+   * TODO: Confirm proper durations on videos
+   * TODO: Command cooldowns
    */
 
   // Cancels messages without pf or user is a bot
@@ -80,10 +83,8 @@ bot.on('message', (msg) => {
 
   // Command: DB
   if (cmd === 'DB') {
-    console.log(voiceChannel)
-    console.log(voiceConnection)
-    console.log(dispatcher)
-    console.log(volume)
+    console.log(msg.createdTimestamp)
+    return
   }
 
   // Command: Play from YouTube Link
@@ -94,6 +95,8 @@ bot.on('message', (msg) => {
     if (args.length > 1) return mh.logChannel(mchannel, 'err', 'Invalid usage! Usage: ' + pf + 'play [url]')
     if (blacklist.users.includes(member.id)) return mh.logChannel(mchannel, 'bl', 'User is blacklisted!')
     if (radioMode) return mh.logChannel(mchannel, 'err', 'Songs cannot be queued while the bot is in radio mode!')
+    if (msg.createdTimestamp - lastMsgTimestamp <= cfg.command_cooldown * 1000) return mh.logChannel(mchannel, 'err', member.toString() + 'Please wait **' + (cfg.command_cooldown - Math.floor((msg.createdTimestamp - lastMsgTimestamp) * 0.001)) + '** second(s) before you use this command again.')
+    lastMsgTimestamp = msg.createdTimestamp
 
     try {
       sourceID = parseYTUrl(args[0])
