@@ -48,12 +48,10 @@ bot.on('ready', () => {
 // On: Message Creation
 bot.on('message', (msg) => {
   /*
-   * TODO: Radio Functionality
    * TODO: Repeats and Shuffles
    * TODO: User and Song Blacklists
    * TODO: Temporary DJ's
    * TODO: Confirm proper durations on videos
-   * TODO: Command cooldowns
    */
 
   // Cancels messages without pf or user is a bot
@@ -288,10 +286,9 @@ function nextSong () {
   }
 
   stream = ytdl(song.link)
-  return voiceConnection.playStream(stream, {
-    'volume': volume
-  })
-  .on('end', () => {
+  let dispatcher = voiceConnection.playStream(stream)
+  dispatcher.setVolume(volume)
+  return dispatcher.on('end', () => {
     if (!radioMode) {
       songQueue.shift()
       if (songQueue.length === 0) return voiceDisconnect()
