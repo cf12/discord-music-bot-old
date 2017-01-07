@@ -52,6 +52,7 @@ bot.on('message', (msg) => {
    * TODO: User and Song Blacklists
    * TODO: Temporary DJ's
    * TODO: Confirm proper durations on videos
+   * TODO: Improve Radio mode ()
    */
 
   // Cancels messages without pf or user is a bot
@@ -77,7 +78,6 @@ bot.on('message', (msg) => {
 
   // Command: Ping
   if (cmd === 'PING') return mh.logChannel(mchannel, 'info', 'Pong!')
-  if (cmd === 'XMAS') return mchannel.sendMessage(':snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake:\n\n                   __**MERRY CHRISTMAS FAGS**__ \n\n:snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake::snowflake: ')
 
   // Command: DB
   if (cmd === 'DB') {
@@ -293,8 +293,8 @@ function nextSong () {
       songQueue.shift()
       if (songQueue.length === 0) return voiceDisconnect()
     }
-    stream.destroy()
     dispatcher = nextSong()
+    return
   })
 }
 
