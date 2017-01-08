@@ -126,12 +126,14 @@ bot.on('message', (msg) => {
       let playlistID = sourceID.substring(2)
       addPlaylist(playlistID, member, () => {
         mh.logChannel(mchannel, 'musinf', 'Playlist successfully added!')
+        if (cfg.use_keymetrics) playlistMetricCounter += 1
         if (!voiceConnection) voiceConnect(member.voiceChannel)
       })
       return
     }
 
     addSong(sourceID, msg.member, false, () => {
+      if (cfg.use_keymetrics) songMetricCounter += 1
       if (!voiceConnection) voiceConnect(member.voiceChannel)
     })
 
