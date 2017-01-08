@@ -20,6 +20,7 @@
     "discord.js": "^10.0.1",
     "node-opus": "^0.2.4",
     "opusscript": "0.0.1",
+    "pmx": "^0.6.8",
     "req-fast": "^0.2.15",
     "youtube-playlist-info": "^0.1.0",
     "ytdl-core": "^0.7.20"

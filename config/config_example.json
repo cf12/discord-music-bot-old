@@ -1,5 +1,6 @@
 {
   "bot_token": "",
   "youtube_api_key": "",
-  "command_cooldown": 8
+  "command_cooldown": 8,
+  "use_keymetrics": false
 }

@@ -5,6 +5,7 @@ const path = require('path')
 const ytdl = require('ytdl-core')
 const YouTubeAPIHandler = require('./youtubeapihandler')
 const mh = require('./messagehandler')
+const pmxprobe = require('pmx').probe()
 
 // Load Files
 try {
@@ -31,6 +32,25 @@ let mchannel
 let radioMode = false
 let stream
 let lastMsgTimestamp
+
+// PMX probe metrics
+if (cfg.use_keymetrics) {
+  var songMetricCounter
+  var songMetric = pmxprobe.metric({
+    name: 'Songs played',
+    value: () => {
+      return songMetricCounter
+    }
+  })
+
+  var playlistMetricCounter
+  var playlistMetric = pmxprobe.metric({
+    name: 'Playlists played',
+    value: () => {
+      return playlistMetricCounter
+    }
+  })
+}
 
 // Init Bot
 bot.login(cfg.bot_token)
@@ -286,7 +306,7 @@ function nextSong () {
   }
 
   stream = ytdl(song.link)
-  let dispatcher = voiceConnection.playStream(stream)
+  dispatcher = voiceConnection.playStream(stream)
   dispatcher.setVolume(volume)
   return dispatcher.on('end', () => {
     if (!radioMode) {
