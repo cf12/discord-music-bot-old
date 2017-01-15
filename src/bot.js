@@ -31,6 +31,7 @@ let volume = 0.15
 let mchannel
 let radioMode = false
 let stream
+let nowPlaying
 let lastMsgTimestamp
 
 // PMX probe metrics
@@ -38,17 +39,13 @@ if (cfg.use_keymetrics) {
   var songMetricCounter
   var songMetric = pmxprobe.metric({
     name: 'Songs played',
-    value: () => {
-      return songMetricCounter
-    }
+    value: songMetricCounter
   })
 
   var playlistMetricCounter
   var playlistMetric = pmxprobe.metric({
     name: 'Playlists played',
-    value: () => {
-      return playlistMetricCounter
-    }
+    value: playlistMetricCounter
   })
 }
 
@@ -62,7 +59,7 @@ bot.login(cfg.bot_token)
 // On: Bot ready
 bot.on('ready', () => {
   console.log('BOT >> Music Bot started')
-  bot.user.setGame('v1.1.0 - By CF12')
+  bot.user.setGame('v1.5.4 - By CF12')
 })
 
 // On: Message Creation
@@ -101,7 +98,7 @@ bot.on('message', (msg) => {
 
   // Command: DB
   if (cmd === 'DB') {
-    console.log(msg.createdTimestamp)
+    console.log(volume)
     return
   }
 
@@ -177,7 +174,7 @@ bot.on('message', (msg) => {
   // Command: Shows the currently playing song
   if (cmd === 'NP' || cmd === 'NOWPLAYING') {
     if (!voiceConnection) return mh.logChannel(mchannel, 'err', 'The bot is not playing anything currently! Use **' + pf + 'play [url]** to queue a song.')
-    mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: **' + songQueue[0].title + ' - [' + songQueue[0].duration + ']** - requested by ' + songQueue[0].requester)
+    mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: **' + nowPlaying.title + ' - [' + nowPlaying.duration + ']** - requested by ' + nowPlaying.requester)
     return
   }
 
@@ -199,7 +196,7 @@ bot.on('message', (msg) => {
   if (cmd === 'VOLUME') {
     if (args.length === 0) return mh.logChannel(mchannel, 'info', 'Sets the volume of music. Usage: ' + pf + 'volume [1-100]')
     if (args.length === 1 && args[0] <= 100 && args[0] >= 1) {
-      volume = args[0] * 0.002
+      volume = args[0] * 0.005
       if (dispatcher) dispatcher.setVolume(volume)
       mh.logChannel(mchannel, 'vol', 'Volume set to: ' + args[0])
     } else mh.logChannel(mchannel, 'err', 'Invalid usage! Usage: ' + pf + 'volume [1-100]')
@@ -298,16 +295,15 @@ function addPlaylist (playlistID, member, callback) {
 
 // Function: Plays next song
 function nextSong () {
-  let song
-  if (radioMode) song = songQueue[Math.floor(Math.random() * songQueue.length)]
-  else song = songQueue[0]
+  if (radioMode) nowPlaying = songQueue[Math.floor(Math.random() * songQueue.length)]
+  else nowPlaying = songQueue[0]
 
   if (!radioMode) {
-    mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: **' + song.title + ' - [' + song.duration + ']** - requested by ' + song.requester)
-    mh.logConsole('info', 'Now playing: ' + song.title)
+    mh.logChannel(mchannel, 'musinf', 'NOW PLAYING: **' + nowPlaying.title + ' - [' + nowPlaying.duration + ']** - requested by ' + nowPlaying.requester)
+    mh.logConsole('info', 'Now playing: ' + nowPlaying.title)
   }
 
-  stream = ytdl(song.link)
+  stream = ytdl(nowPlaying.link)
   dispatcher = voiceConnection.playStream(stream)
   dispatcher.setVolume(volume)
   return dispatcher.on('end', () => {
