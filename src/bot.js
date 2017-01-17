@@ -266,12 +266,13 @@ function addSong (videoID, member, suppress, callback) {
     if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing video(es). Please make sure the URL is valid.')
     if (!suppress) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
     let video = info.items[0]
+    console.log(JSON.stringify(video))
 
     songQueue.push({
       video_ID: videoID,
       link: String('http://youtube.com/?v=' + videoID),
       requester: member.toString(),
-      title: video.snippet.title,
+      title: String(video.snippet.title),
       duration: convertDuration(video.contentDetails.duration)
     })
 
@@ -284,6 +285,7 @@ function addPlaylist (playlistID, member, callback) {
   if (!radioMode) mh.logChannel(mchannel, 'musinf', 'Fetching playlist information...')
   yth.getPlaylist(playlistID, (err, playlist) => {
     if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing playlist URL. Please make sure the URL is valid.')
+    if (playlist.length === 0) return mh.logChannel(mchannel, 'err', 'The input playlist is empty. Please queue a non-empty playlist.')
 
     for (const index in playlist) {
       addSong(playlist[index].snippet.resourceId.videoId, member, true, () => {

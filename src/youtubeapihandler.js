@@ -35,27 +35,29 @@ module.exports = class YTApiHandler {
       if (!err && res.statusCode === 200) {
         if (res.body.nextPageToken) {
           try {
-            this.getCompletePlaylist(playlistID, res.body.nextPageToken, (playlist) => {
+            this.getCompletePlaylist(playlistID, undefined, (playlist) => {
               callback(undefined, playlist)
             })
           } catch (err) {
-            callback(err, undefined)
+            if (err) callback(err, undefined)
           }
-        } else {
-          callback(undefined, res.body.items)
-        }
+        } else callback(undefined, res.body.items)
       } else callback(err, undefined)
     })
   }
 
   getCompletePlaylist (playlistID, pageToken, callback) {
+    let reqUrl
+    if (!pageToken) reqUrl = this.options.base + '/playlistItems/?part=snippet,contentDetails&maxResults=50&playlistId=' + playlistID + '&key=' + this.apiKey
+    else reqUrl = this.options.base + '/playlistItems/?part=snippet,contentDetails&maxResults=50&playlistId=' + playlistID + '&key=' + this.apiKey + '&pageToken=' + pageToken
+    console.log(reqUrl)
     req({
-      url: this.options.base + '/playlistItems/?part=snippet,contentDetails&maxResults=50&playlistId=' + playlistID + '&key=' + this.apiKey + '&pageToken=' + pageToken,
+      url: reqUrl,
       method: 'GET',
       dataType: 'json'
     }, (err, res) => {
       if (!err && res.statusCode === 200) {
-        this.resultPlaylist = this.resultPlaylist.concat(res.body.items)
+        if (res.body.items.length !== 0) this.resultPlaylist = this.resultPlaylist.concat(res.body.items)
         if (res.body.nextPageToken) pageToken = res.body.nextPageToken
         else pageToken = undefined
 
