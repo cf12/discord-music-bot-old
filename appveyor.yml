@@ -9,23 +9,12 @@ environment:
 
 # Install scripts. (runs after repo cloning)
 install:
-  
-  # Install Python (from the official .msi of http://python.org) and pip when
-  # not already installed.
-  - ps: if (-not(Test-Path($env:PYTHON))) { & appveyor\install.ps1 }
-
-  # Prepend newly installed Python to the PATH of this build (this cannot be
-  # done from inside the powershell script as it would require to restart
-  # the parent CMD process).
-  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
-
-  # Check that we have the expected version and architecture for Python
   - "python --version"
   - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
   
   
   # Get the latest stable version of Node.js or io.js
-  - ps: Install-Product node $env:nodejs_version
+  - ps: Install-Product node $env:nodejs_version x64
   # install modules
   - npm install
 
