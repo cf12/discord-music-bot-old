@@ -1,6 +1,11 @@
 # Test against the latest version of this Node.js version
 environment:
   nodejs_version: "7"
+  
+  matrix:
+    - PYTHON: "C:\\Python27"
+      PYTHON_VERSION: "2.7.8"
+      PYTHON_ARCH: "32"
 
 # Install scripts. (runs after repo cloning)
 install:
