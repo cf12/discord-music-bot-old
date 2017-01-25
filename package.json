@@ -4,7 +4,7 @@
   "description": "A music bot for Discord, built on top of eris.js",
   "main": "src/bot.js",
   "scripts": {
-    "test": "src/bot.js"
+    "test": "text.bat"
   },
   "repository": {
     "type": "git",
