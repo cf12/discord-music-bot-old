@@ -14,7 +14,7 @@ install:
   # install modules
   - npm install
   # Copy config_default to config
-  - copy "config\config_default.json" "config\config.json"
+  - copy "config\config_example.json" "config\config.json"
 
 
 # Post-install test scripts.
