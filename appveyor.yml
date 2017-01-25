@@ -1,18 +1,14 @@
 # Test against the latest version of this Node.js version
 environment:
   nodejs_version: "7"
-  
+
   matrix:
     - PYTHON: "C:\\Python27"
-      PYTHON_VERSION: "2.7.8"
-      PYTHON_ARCH: "32"
+      PYTHON_VERSION: "2.7.10"
+      PYTHON_ARCH: "64"
 
 # Install scripts. (runs after repo cloning)
 install:
-  - "python --version"
-  - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
-  
-  
   # Get the latest stable version of Node.js or io.js
   - ps: Install-Product node $env:nodejs_version x64
   # install modules
