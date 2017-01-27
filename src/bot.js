@@ -309,6 +309,7 @@ function nextSong () {
   dispatcher = voiceConnection.playStream(stream)
   dispatcher.setVolume(volume)
   return dispatcher.on('end', () => {
+    if (voiceConnection.channel.members.array().length === 1) return voiceDisconnect(true)
     if (!radioMode) {
       songQueue.shift()
       if (songQueue.length === 0) return voiceDisconnect()
@@ -330,9 +331,10 @@ function voiceConnect (channel) {
 }
 
 // Function: Disconnect from Voice Channel
-function voiceDisconnect () {
+function voiceDisconnect (emptyVoice = false) {
   mh.logConsole('info', 'Leaving Voice Channel <' + voiceChannel.id + '>')
-  mh.logChannel(mchannel, 'musinf', 'Queue ended. Disconnecting...')
+  if (!emptyVoice) mh.logChannel(mchannel, 'musinf', 'Queue ended. Disconnecting...')
+  else mh.logChannel(mchannel, 'musinf', 'Empty voice channel detected. Disconnecting...')
 
   voiceConnection.disconnect()
   voiceConnection = undefined

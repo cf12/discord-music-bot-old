@@ -17,15 +17,6 @@
     "sub": []
   },
 
-  "xmas": {
-    "info": {
-      "format": "xmas",
-      "description": "Limited Christmas Command"
-    },
-
-    "sub": []
-  },
-
   "play": {
     "info": {
       "format": "play [url]",
