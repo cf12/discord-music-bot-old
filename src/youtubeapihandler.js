@@ -50,7 +50,6 @@ module.exports = class YTApiHandler {
     let reqUrl
     if (!pageToken) reqUrl = this.options.base + '/playlistItems/?part=snippet,contentDetails&maxResults=50&playlistId=' + playlistID + '&key=' + this.apiKey
     else reqUrl = this.options.base + '/playlistItems/?part=snippet,contentDetails&maxResults=50&playlistId=' + playlistID + '&key=' + this.apiKey + '&pageToken=' + pageToken
-    console.log(reqUrl)
     req({
       url: reqUrl,
       method: 'GET',

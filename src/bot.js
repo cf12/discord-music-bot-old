@@ -270,7 +270,7 @@ function addSong (videoID, member, suppress, callback) {
 
     songQueue.push({
       video_ID: videoID,
-      link: String('http://youtube.com/?v=' + videoID),
+      link: String('http://youtube.com/watch?v=' + videoID),
       requester: member.toString(),
       title: String(video.snippet.title),
       duration: convertDuration(video.contentDetails.duration)
@@ -312,7 +312,7 @@ function nextSong () {
     if (voiceConnection.channel.members.array().length === 1) return voiceDisconnect(true)
     if (!radioMode) {
       songQueue.shift()
-      if (songQueue.length === 0) return voiceDisconnect()
+      if (songQueue.length === 0) return voiceDisconnect(false)
     }
     dispatcher = nextSong()
     return
