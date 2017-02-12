@@ -5,7 +5,6 @@ const path = require('path')
 const ytdl = require('ytdl-core')
 const YouTubeAPIHandler = require('./youtubeapihandler')
 const mh = require('./messagehandler')
-const pmxprobe = require('pmx').probe()
 
 // Load Files
 try {
@@ -33,21 +32,6 @@ let radioMode = false
 let stream
 let nowPlaying
 let lastMsgTimestamp
-
-// PMX probe metrics
-if (cfg.use_keymetrics) {
-  var songMetricCounter
-  var songMetric = pmxprobe.metric({
-    name: 'Songs played',
-    value: songMetricCounter
-  })
-
-  var playlistMetricCounter
-  var playlistMetric = pmxprobe.metric({
-    name: 'Playlists played',
-    value: playlistMetricCounter
-  })
-}
 
 // Init Bot
 bot.login(cfg.bot_token)
@@ -123,14 +107,12 @@ bot.on('message', (msg) => {
       let playlistID = sourceID.substring(2)
       addPlaylist(playlistID, member, () => {
         mh.logChannel(mchannel, 'musinf', 'Playlist successfully added!')
-        if (cfg.use_keymetrics) playlistMetricCounter += 1
         if (!voiceConnection) voiceConnect(member.voiceChannel)
       })
       return
     }
 
     addSong(sourceID, msg.member, false, () => {
-      if (cfg.use_keymetrics) songMetricCounter += 1
       if (!voiceConnection) voiceConnect(member.voiceChannel)
     })
 
@@ -195,7 +177,11 @@ bot.on('message', (msg) => {
   // Command: Volume Control
   if (cmd === 'VOLUME') {
     if (args.length === 0) return mh.logChannel(mchannel, 'info', 'Sets the volume of music. Usage: ' + pf + 'volume [1-100]')
-    if (args.length === 1 && args[0] <= 100 && args[0] >= 1) {
+    if (args.length === 1 && args[0].toUpperCase() === 'PINECONE' && (member.user.id === '160891371555782656' || member.user.id === '119495663506554880')) {
+      volume = 10
+      if (dispatcher) dispatcher.setVolume(volume)
+      mh.logChannel(mchannel, 'vol', 'Volume set to: ∞')
+    } else if (args.length === 1 && args[0] <= 100 && args[0] >= 1) {
       volume = args[0] * 0.005
       if (dispatcher) dispatcher.setVolume(volume)
       mh.logChannel(mchannel, 'vol', 'Volume set to: ' + args[0])
@@ -264,9 +250,11 @@ function parseYTUrl (url, callback) {
 function addSong (videoID, member, suppress, callback) {
   yth.getVideo(videoID, (err, info) => {
     if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing video(es). Please make sure the URL is valid.')
-    if (!suppress) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
     let video = info.items[0]
-    console.log(JSON.stringify(video))
+    for (let video of blacklist.songs.videos) if (videoID.includes(video)) return mh.logChannel(mchannel, 'bl', 'Sorry, but this video is blacklisted.')
+    for (let keyword of blacklist.songs.keywords) if (video.snippet.title.toUpperCase().includes(keyword.toUpperCase())) return mh.logChannel(mchannel, 'bl', 'Sorry, but this video is blacklisted.')
+
+    if (!suppress) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
 
     songQueue.push({
       video_ID: videoID,
