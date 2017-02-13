@@ -19,6 +19,6 @@
  - Other stuffs
 
 ###### Prerequisites:
- - Node.JS (Built on v7.2.0)
+ - Node.JS (Built on v7.5.0)
  - FFPMEG (Windows Executables included in /src)
  - Discord.JS v11.0.0
