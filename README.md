@@ -1,5 +1,4 @@
 # Music Bot
-=====================
 ##### Music bot is a simple discord bot built on the *Discord.JS API* for discord.
 
 ### STATUS: STABLE, (But could be better)
