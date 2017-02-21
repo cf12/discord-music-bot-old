@@ -31,6 +31,7 @@ let mchannel
 let radioMode = false
 let stream
 let nowPlaying
+let prevPlayed
 let lastMsgTimestamp
 
 // Init Bot
@@ -50,7 +51,6 @@ bot.on('ready', () => {
 bot.on('message', (msg) => {
   /*
    * TODO: Repeats and Shuffles
-   * TODO: User and Song Blacklists
    * TODO: Temporary DJ's
    * TODO: Confirm proper durations on videos
    * TODO: Improve Radio mode ()
@@ -106,16 +106,37 @@ bot.on('message', (msg) => {
     if (sourceID.includes('p:')) {
       let playlistID = sourceID.substring(2)
       addPlaylist(playlistID, member, () => {
-        mh.logChannel(mchannel, 'musinf', 'Playlist successfully added!')
+        mh.logChannel(mchannel, 'info', 'Playlist successfully added!')
         if (!voiceConnection) voiceConnect(member.voiceChannel)
       })
+
+      prevPlayed = sourceID
+
       return
     }
 
     addSong(sourceID, msg.member, false, () => {
       if (!voiceConnection) voiceConnect(member.voiceChannel)
+
+      prevPlayed = sourceID
     })
 
+    return
+  }
+
+  // Command: Requeue last song
+  if (cmd === 'REQUEUE') {
+    if (!prevPlayed) return mh.logChannel(mchannel, 'err', 'Previous Queue is empty. Queue something before using this command.')
+    if (prevPlayed.slice(0, 2) === 'p:') {
+      addPlaylist(prevPlayed.slice(2), member, () => {
+        mh.logChannel(mchannel, 'info', 'Playlist successfully re-queued!')
+        if (!voiceConnection) voiceConnect(member.voiceChannel)
+      })
+    } else {
+      addSong(prevPlayed, member, false, () => {
+        if (!voiceConnection) voiceConnect(member.voiceChannel)
+      })
+    }
     return
   }
 
@@ -293,14 +314,17 @@ function nextSong () {
     mh.logConsole('info', 'Now playing: ' + nowPlaying.title)
   }
 
-  stream = ytdl(nowPlaying.link)
+  stream = ytdl(nowPlaying.link, {quality: 'lowest'})
   dispatcher = voiceConnection.playStream(stream)
   dispatcher.setVolume(volume)
   return dispatcher.on('end', () => {
     if (voiceConnection.channel.members.array().length === 1) return voiceDisconnect(true)
     if (!radioMode) {
       songQueue.shift()
-      if (songQueue.length === 0) return voiceDisconnect(false)
+      if (songQueue.length === 0) {
+        voiceDisconnect(false)
+        return
+      }
     }
     dispatcher = nextSong()
     return
@@ -326,6 +350,7 @@ function voiceDisconnect (emptyVoice = false) {
 
   voiceConnection.disconnect()
   voiceConnection = undefined
+  dispatcher = undefined
 }
 
 // Function: Convert Durations from ISO 8601

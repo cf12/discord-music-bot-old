@@ -26,6 +26,15 @@
     "sub": []
   },
 
+  "requeue": {
+    "info": {
+      "format": "requeue",
+      "description": "Queues the previously played song"
+    },
+
+    "sub": []
+  },
+
   "queue": {
     "info": {
       "format": "queue",
