@@ -29,10 +29,11 @@ let songQueue = []
 let volume = 0.15
 let mchannel
 let radioMode = false
+let shuffle = false
 let stream
 let nowPlaying
 let prevPlayed
-let lastMsgTimestamp
+let lastMsgTimestamp = 0
 
 // Init Bot
 bot.login(cfg.bot_token)
@@ -50,10 +51,10 @@ bot.on('ready', () => {
 // On: Message Creation
 bot.on('message', (msg) => {
   /*
-   * TODO: Repeats and Shuffles
+   * TODO: Repeats
    * TODO: Temporary DJ's
    * TODO: Confirm proper durations on videos
-   * TODO: Improve Radio mode ()
+   * TODO: Add radios
    */
 
   // Cancels messages without pf or user is a bot
@@ -68,7 +69,7 @@ bot.on('message', (msg) => {
 
   // Command: Help
   if (cmd === 'HELP') {
-    let msg = '__Manual page for: **Everything**__\n'
+    let msg = '__**COMMAND HELP:**__\n**===============================**\n*Syntax: [] = required arguments; {} = optional arguments*\n\n'
     for (let key in helpfile) {
       msg += '**' + pf + key + '**' + ' - ' + helpfile[key].info.description + '\n'
     }
@@ -94,8 +95,7 @@ bot.on('message', (msg) => {
     if (args.length > 1) return mh.logChannel(mchannel, 'err', 'Invalid usage! Usage: ' + pf + 'play [url]')
     if (blacklist.users.includes(member.id)) return mh.logChannel(mchannel, 'bl', 'User is blacklisted!')
     if (radioMode) return mh.logChannel(mchannel, 'err', 'Songs cannot be queued while the bot is in radio mode!')
-    if (msg.createdTimestamp - lastMsgTimestamp <= cfg.command_cooldown * 1000) return mh.logChannel(mchannel, 'delay', member.toString() + 'Please wait **' + (cfg.command_cooldown - Math.floor((msg.createdTimestamp - lastMsgTimestamp) * 0.001)) + '** second(s) before you use this command again.')
-    lastMsgTimestamp = msg.createdTimestamp
+    if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 5000)) return
 
     try {
       sourceID = parseYTUrl(args[0])
@@ -124,9 +124,23 @@ bot.on('message', (msg) => {
     return
   }
 
+  // Command: Toggles song shuffling
+  if (cmd === 'SHUFFLE') {
+    if (args.length > 0) {
+      if (['ON', 'TRUE'].includes(args[0].toUpperCase())) shuffle = true
+      else if (['OFF', 'FALSE'].includes(args[0].toUpperCase())) shuffle = false
+      else return mh.logChannel(mchannel, 'err', `Invalid Arguments! Usage: ${pf + helpfile.shuffle.info.format}`)
+    } else shuffle = !shuffle
+
+    if (shuffle) mh.logChannel(mchannel, 'info', `Shuffling is now: **ON**`)
+    else mh.logChannel(mchannel, 'info', `Shuffling is now: **OFF**`)
+    return
+  }
+
   // Command: Requeue last song
   if (cmd === 'REQUEUE') {
     if (!prevPlayed) return mh.logChannel(mchannel, 'err', 'Previous Queue is empty. Queue something before using this command.')
+    if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 20000)) return
     if (prevPlayed.slice(0, 2) === 'p:') {
       addPlaylist(prevPlayed.slice(2), member, () => {
         mh.logChannel(mchannel, 'info', 'Playlist successfully re-queued!')
@@ -170,6 +184,8 @@ bot.on('message', (msg) => {
   if (cmd === 'SKIP') {
     if (!voiceConnection) return mh.logChannel(mchannel, 'err', 'The bot is not playing anything currently! Use **' + pf + 'play [url]** to queue a song.')
     if (radioMode) return mh.logChannel(mchannel, 'err', 'Skip is unavailable in radio mode.')
+    if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 15000)) return
+
     dispatcher.end()
     return
   }
@@ -291,7 +307,7 @@ function addSong (videoID, member, suppress, callback) {
 
 // Function: Queues an entire playlist
 function addPlaylist (playlistID, member, callback) {
-  if (!radioMode) mh.logChannel(mchannel, 'musinf', 'Fetching playlist information...')
+  mh.logChannel(mchannel, 'musinf', 'Fetching playlist information...')
   yth.getPlaylist(playlistID, (err, playlist) => {
     if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing playlist URL. Please make sure the URL is valid.')
     if (playlist.length === 0) return mh.logChannel(mchannel, 'err', 'The input playlist is empty. Please queue a non-empty playlist.')
@@ -306,7 +322,7 @@ function addPlaylist (playlistID, member, callback) {
 
 // Function: Plays next song
 function nextSong () {
-  if (radioMode) nowPlaying = songQueue[Math.floor(Math.random() * songQueue.length)]
+  if (radioMode || shuffle) nowPlaying = songQueue[Math.floor(Math.random() * songQueue.length)]
   else nowPlaying = songQueue[0]
 
   if (!radioMode) {
@@ -351,6 +367,19 @@ function voiceDisconnect (emptyVoice = false) {
   voiceConnection.disconnect()
   voiceConnection = undefined
   dispatcher = undefined
+}
+
+// Function: Check and return cooldowns between message timestamps
+function checkCooldown (currentTime, lastTime, member, cooldown) {
+  let diff = currentTime - lastTime
+  if (diff <= cooldown) {
+    mh.logChannel(mchannel, 'delay', `${member.toString()}, please wait **${cooldown * 0.001 - Math.ceil(diff * 0.001)}** second(s) before using this command again.`)
+
+    return true
+  } else {
+    lastMsgTimestamp = currentTime
+    return false
+  }
 }
 
 // Function: Convert Durations from ISO 8601

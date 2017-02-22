@@ -19,7 +19,16 @@
 
   "play": {
     "info": {
-      "format": "play [url]",
+      "format": "play (url)",
+      "description": "Plays a YouTube link in the voice channel (Video / Playlist)"
+    },
+
+    "sub": []
+  },
+
+  "shuffle": {
+    "info": {
+      "format": "shuffle {ON / OFF}",
       "description": "Plays a YouTube link in the voice channel (Video / Playlist)"
     },
 
