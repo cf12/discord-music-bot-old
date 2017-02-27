@@ -39,6 +39,9 @@ jspm_packages
 # Idea
 .idea
 
+# VSCode
+.vscode
+
 # Custom settings
 config/config.json
 config/blacklist.json

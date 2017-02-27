@@ -27,6 +27,6 @@
     "ytdl-core": "^0.7.24"
   },
   "devDependencies": {
-    "standard": "*"
+    "standard": "^8.6.0"
   }
 }
