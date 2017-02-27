@@ -55,6 +55,8 @@ bot.on('message', (msg) => {
    * TODO: Temporary DJ's
    * TODO: Confirm proper durations on videos
    * TODO: Add radios
+   * TODO: Redo Queue Listings
+   * TODO: Fix Queue Listings for Radio Mode
    */
 
   // Cancels messages without pf or user is a bot
@@ -287,9 +289,17 @@ function parseYTUrl (url, callback) {
 function addSong (videoID, member, suppress, callback) {
   yth.getVideo(videoID, (err, info) => {
     if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing video(es). Please make sure the URL is valid.')
+    if (info === 'EMPTY_VID') return
     let video = info.items[0]
-    for (let video of blacklist.songs.videos) if (videoID.includes(video)) return mh.logChannel(mchannel, 'bl', 'Sorry, but this video is blacklisted.')
-    for (let keyword of blacklist.songs.keywords) if (video.snippet.title.toUpperCase().includes(keyword.toUpperCase())) return mh.logChannel(mchannel, 'bl', 'Sorry, but this video is blacklisted.')
+    for (let video of blacklist.songs.videos) {
+      if (!suppress) mh.logChannel(mchannel, 'bl', 'Sorry, but this video is blacklisted.')
+      if (videoID.includes(video)) return
+    }
+
+    for (let keyword of blacklist.songs.keywords) {
+      if (!suppress) mh.logChannel(mchannel, 'bl', 'Sorry, but this video is blacklisted.')
+      if (video.snippet.title.toUpperCase().includes(keyword.toUpperCase())) return
+    }
 
     if (!suppress) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
 
@@ -307,7 +317,7 @@ function addSong (videoID, member, suppress, callback) {
 
 // Function: Queues an entire playlist
 function addPlaylist (playlistID, member, callback) {
-  mh.logChannel(mchannel, 'musinf', 'Fetching playlist information...')
+  if (!radioMode) mh.logChannel(mchannel, 'musinf', 'Fetching playlist information...')
   yth.getPlaylist(playlistID, (err, playlist) => {
     if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing playlist URL. Please make sure the URL is valid.')
     if (playlist.length === 0) return mh.logChannel(mchannel, 'err', 'The input playlist is empty. Please queue a non-empty playlist.')
