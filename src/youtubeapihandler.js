@@ -19,6 +19,7 @@ module.exports = class YTApiHandler {
 
     req(options, (err, res) => {
       if (!err && res.statusCode === 200) {
+        if (res.body.items.length === 0) return callback(undefined, 'EMPTY_VID')
         return callback(undefined, (res.body))
       } else return callback(err, undefined)
     })
