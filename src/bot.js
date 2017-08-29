@@ -216,11 +216,7 @@ bot.on('message', (msg) => {
   // Command: Volume Control
   if (cmd === 'VOLUME') {
     if (args.length === 0) return mh.logChannel(mchannel, 'info', 'Sets the volume of music. Usage: ' + pf + 'volume [1-100]')
-    if (args.length === 1 && args[0].toUpperCase() === 'PINECONE' && (member.user.id === '160891371555782656' || member.user.id === '119495663506554880')) {
-      volume = 10
-      if (dispatcher) dispatcher.setVolume(volume)
-      mh.logChannel(mchannel, 'vol', 'Volume set to: ∞')
-    } else if (args.length === 1 && args[0] <= 100 && args[0] >= 1) {
+    if (args.length === 1 && args[0] <= 100 && args[0] >= 1) {
       volume = args[0] * 0.005
       if (dispatcher) dispatcher.setVolume(volume)
       mh.logChannel(mchannel, 'vol', 'Volume set to: ' + args[0])
