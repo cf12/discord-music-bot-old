@@ -13,9 +13,7 @@
  - "Radio stations" based off of playlists on YouTube
 
 ## Planned Features:
- - Soundcloud Integration
- - Permissions
- - Other stuffs
+ - https://github.com/CF12/music-bot/issues/3
 
 ## Prerequisites:
  - Node.JS (Built on v7.5.0)
