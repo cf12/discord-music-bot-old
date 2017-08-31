@@ -1,20 +1,89 @@
-function logChannel (channel, type, msg) {
-  if (type === 'info') return channel.sendMessage(':bulb:**  | INFO | ** ' + msg)
-  if (type === 'err') return channel.sendMessage(':warning:**  | ERROR | ** ' + msg)
-  if (type === 'delay') return channel.sendMessage(':alarm_clock:** | COOLDOWN | **' + msg)
-  if (type === 'musinf') return channel.sendMessage(':musical_note:**  | MUSIC | ** ' + msg)
-  if (type === 'vol') return channel.sendMessage(':loud_sound:**  | VOLUME | ** ' + msg)
-  if (type === 'bl') return channel.sendMessage(':flag_black:**  | BLACKLIST | ** ' + msg)
-  if (type === 'radioinf') return channel.sendMessage(':radio:**  | RADIO | ** ' + msg)
+let embeds = {
+  info: {
+    title: ':bulb: ❱❱ INFO',
+    color: 5235199 // Light Blue
+  },
 
-  console.log('ERROR IN LOG CHANNEL')
+  err: {
+    title: ':warning: ❱❱ ERROR',
+    color: 16731983 // Light Red
+  },
+
+  delay: {
+    title: ':alarm_clock: ❱❱ COOLDOWN',
+    color: 16580431 // Yellow
+  },
+
+  musinf: {
+    title: ':musical_note: ❱❱ MUSIC',
+    color: 5242738 // Green
+  },
+
+  vol: {
+    title: ':loud_sound: ❱❱ VOLUME',
+    color: 5235199 // Light Blue
+  },
+
+  bl: {
+    title: ':flag_black: ❱❱ BLACKLIST',
+    color: 8071884 // Dark Purple
+  },
+
+  radioinf: {
+    title: ':radio: ❱❱ RADIO',
+    color: 10824533 // Magenta
+  }
+}
+
+function logChannel (channel, type, msg) {
+  switch (type) {
+    case 'info':
+      return channel.send({
+        embed: Object.assign(embeds.info, { description: msg })
+      })
+
+    case 'err':
+      return channel.send({
+        embed: Object.assign(embeds.err, { description: msg })
+      })
+
+    case 'delay':
+      return channel.send({
+        embed: Object.assign(embeds.delay, { description: msg })
+      })
+
+    case 'musinf':
+      return channel.send({
+        embed: Object.assign(embeds.musinf, { description: msg })
+      })
+
+    case 'vol':
+      return channel.send({
+        embed: Object.assign(embeds.vol, { description: msg })
+      })
+
+    case 'bl':
+      return channel.send({
+        embed: Object.assign(embeds.bl, { description: msg })
+      })
+
+    case 'radioinf':
+      return channel.send({
+        embed: Object.assign(embeds.radioinf, { description: msg })
+      })
+
+    default:
+      console.log('ERROR IN LOG CHANNEL')
+  }
 }
 
 function logConsole (type, msg) {
-  if (type === 'info') return console.log('INFO >> ' + msg)
-  if (type === 'err') return console.log('ERROR >> ' + msg)
-  if (type === 'db') return console.log('DEBUG >> ' + msg)
-  console.log('ERROR IN LOG CONSOLE')
+  switch (type) {
+    case 'info': return console.log(`INFO >> ${msg}`)
+    case 'err': return console.log(`ERROR >> ${msg}`)
+    case 'db': return console.log(`DEBUG >> ${msg}`)
+    default: console.log('ERROR IN LOG CONSOLE')
+  }
 }
 
 module.exports = {

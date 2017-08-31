@@ -17,8 +17,9 @@
   },
   "homepage": "https://github.com/CF12/music-bot#readme",
   "dependencies": {
-    "discord.js": "^11.0.0",
-    "erlpack": "github:hammerandchisel/erlpack#master",
+    "bufferutil": "^3.0.2",
+    "discord.js": "^11.1.0",
+    "erlpack": "github:hammerandchisel/erlpack",
     "node-opus": "^0.2.4",
     "opusscript": "0.0.1",
     "pmx": "^0.6.8",

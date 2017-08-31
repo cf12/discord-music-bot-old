@@ -6,12 +6,15 @@ const ytdl = require('ytdl-core')
 const YouTubeAPIHandler = require('./youtubeapihandler')
 const mh = require('./messagehandler')
 
+// Init Config Vars
+let cfg, helpfile, blacklist, radiolist
+
 // Load Files
 try {
-  var cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'config.json')), 'utf8')
-  var helpfile = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'help.json')), 'utf8')
-  var blacklist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'blacklist.json')), 'utf8')
-  var radiolist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'radio_playlists.json')), 'utf8')
+  cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'config.json')), 'utf8')
+  helpfile = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'help.json')), 'utf8')
+  blacklist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'blacklist.json')), 'utf8')
+  radiolist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'radio_playlists.json')), 'utf8')
 } catch (err) {
   if (err) throw err
 }
@@ -21,18 +24,12 @@ const bot = new DiscordJS.Client()
 const yth = new YouTubeAPIHandler(cfg.youtube_api_key)
 
 // Variable Declaration
+let voiceConnection, voiceChannel, dispatcher, stream, nowPlaying, prevPlayed, mchannel
 let pf = '$'
-let voiceConnection
-let voiceChannel
-let dispatcher
 let songQueue = []
 let volume = 0.15
-let mchannel
 let radioMode = false
 let shuffle = false
-let stream
-let nowPlaying
-let prevPlayed
 let lastMsgTimestamp = 0
 
 // Init Bot
@@ -45,7 +42,7 @@ bot.login(cfg.bot_token)
 // On: Bot ready
 bot.on('ready', () => {
   console.log('BOT >> Music Bot started')
-  bot.user.setGame('v1.5.4 - By CF12')
+  bot.user.setPresence({ game: { name: 'v1.2.0 - By CF12', type: 0 } })
 })
 
 // On: Message Creation
@@ -71,23 +68,32 @@ bot.on('message', (msg) => {
 
   // Command: Help
   if (cmd === 'HELP') {
-    let msg = '__**COMMAND HELP:**__\n**===============================**\n*Syntax: [] = required arguments; {} = optional arguments*\n\n'
-    for (let key in helpfile) {
-      msg += '**' + pf + key + '**' + ' - ' + helpfile[key].info.description + '\n'
+    let options = {
+      title: '',
+      description: ' __[] = required arguments; {} = optional arguments__',
+      color: 4322503,
+      fields: []
     }
 
-    mchannel.sendMessage(msg)
+    if (args.length === 0) {
+      options.title = ':grey_question: ❱❱ COMMAND HELP'
+
+      for (let key in helpfile) {
+        options.fields.push({
+          name: `**${pf}${helpfile[key].format}**`,
+          value: helpfile[key].description
+        })
+      }
+    } else if (args.length === 1) {
+      if (!Object.keys(helpfile).includes(args[0].toUpperCase())) return mh.logChannel(mchannel, 'err', 'Couldn\')
+    }
+
+    mchannel.send({ embed: options })
     return
   }
 
   // Command: Ping
   if (cmd === 'PING') return mh.logChannel(mchannel, 'info', 'Pong!')
-
-  // Command: DB
-  if (cmd === 'DB') {
-    console.log(volume)
-    return
-  }
 
   // Command: Play from YouTube Link
   if (cmd === 'PLAY') {
@@ -107,7 +113,8 @@ bot.on('message', (msg) => {
 
     if (sourceID.includes('p:')) {
       let playlistID = sourceID.substring(2)
-      addPlaylist(playlistID, member, () => {
+      addPlaylist(playlistID, member)
+      .then(() => {
         mh.logChannel(mchannel, 'info', 'Playlist successfully added!')
         if (!voiceConnection) voiceConnect(member.voiceChannel)
       })
@@ -117,9 +124,9 @@ bot.on('message', (msg) => {
       return
     }
 
-    addSong(sourceID, msg.member, false, () => {
+    addSong(sourceID, msg.member, false)
+    .then(() => {
       if (!voiceConnection) voiceConnect(member.voiceChannel)
-
       prevPlayed = sourceID
     })
 
@@ -144,12 +151,14 @@ bot.on('message', (msg) => {
     if (!prevPlayed) return mh.logChannel(mchannel, 'err', 'Previous Queue is empty. Queue something before using this command.')
     if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 20000)) return
     if (prevPlayed.slice(0, 2) === 'p:') {
-      addPlaylist(prevPlayed.slice(2), member, () => {
+      addPlaylist(prevPlayed.slice(2), member)
+      .then(() => {
         mh.logChannel(mchannel, 'info', 'Playlist successfully re-queued!')
         if (!voiceConnection) voiceConnect(member.voiceChannel)
       })
     } else {
-      addSong(prevPlayed, member, false, () => {
+      addSong(prevPlayed, member, false)
+      .then(() => {
         if (!voiceConnection) voiceConnect(member.voiceChannel)
       })
     }
@@ -226,9 +235,8 @@ bot.on('message', (msg) => {
 
   if (cmd === 'RADIO') {
     if (args.length === 0) return mh.logChannel(mchannel, 'info', 'Controls the radio features of the bot. For more info, do: **' + pf + 'radio help**')
-    if (args[0].toUpperCase() === 'HELP') return mchannel.sendMessage('__Manual page for: **' + pf + 'radio**__\n**' + pf + 'radio help** - Shows this manual page\n**' + pf + 'radio list** - Displays a list of radio stations\n**' + pf + 'radio set [station]** - Sets the radio to the specified station\n**' + pf + 'radio off** - Deactivates the radio')
+    if (args[0].toUpperCase() === 'HELP') return mchannel.send('__Manual page for: **' + pf + 'radio**__\n**' + pf + 'radio help** - Shows this manual page\n**' + pf + 'radio list** - Displays a list of radio stations\n**' + pf + 'radio set [station]** - Sets the radio to the specified station\n**' + pf + 'radio off** - Deactivates the radio')
     if (args[0].toUpperCase() === 'LIST') return mh.logChannel(mchannel, 'radioinf', '**Available Radio Stations:** ' + Object.keys(radiolist))
-
     if (args[0].toUpperCase() === 'SET') {
       if (args.length === 2) {
         if (voiceConnection) return mh.logChannel(mchannel, 'err', 'Bot cannot be in a voice channel while activating radio mode. Please disconnect the bot by using ' + pf + 'leave.')
@@ -237,7 +245,11 @@ bot.on('message', (msg) => {
 
         radioMode = true
         mh.logChannel(mchannel, 'radioinf', 'NOW PLAYING: Radio Station - **' + args[1] + '**')
-        addPlaylist(radiolist[args[1].toUpperCase()], msg.member, () => { voiceConnect(member.voiceChannel) })
+        addPlaylist(radiolist[args[1].toUpperCase()], msg.member)
+        .then(() => {
+          voiceConnect(member.voiceChannel)
+        })
+
         return
       }
 
@@ -282,47 +294,61 @@ function parseYTUrl (url, callback) {
 }
 
 // Function: Adds song to queue
-function addSong (videoID, member, suppress, callback) {
-  yth.getVideo(videoID, (err, info) => {
-    if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing video(es). Please make sure the URL is valid.')
-    if (info === 'EMPTY_VID') return
-    let video = info.items[0]
-    for (let video of blacklist.songs.videos) {
-      if (!suppress) mh.logChannel(mchannel, 'bl', 'Sorry, but this video is blacklisted.')
-      if (videoID.includes(video)) return
-    }
+function addSong (videoID, member, suppress) {
+  return new Promise((resolve, reject) => {
+    if (blacklist.songs.videos.includes(videoID) && !suppress) return mh.logChannel(mchannel, 'bl', `Sorry, but this video is blacklisted. **[Video ID in Blacklist]**`)
 
-    for (let keyword of blacklist.songs.keywords) {
-      if (!suppress) mh.logChannel(mchannel, 'bl', 'Sorry, but this video is blacklisted.')
-      if (video.snippet.title.toUpperCase().includes(keyword.toUpperCase())) return
-    }
+    yth.getVideo(videoID)
+    .then((info) => {
+      let video = info.items[0]
 
-    if (!suppress) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
+      for (let keyword of blacklist.songs.keywords) {
+        if (video.snippet.title.toUpperCase().includes(keyword.toUpperCase()) && !suppress) return mh.logChannel(mchannel, 'bl', `Sorry, but this video is blacklisted. **[Keyword: ${keyword}]**`)
+      }
 
-    songQueue.push({
-      video_ID: videoID,
-      link: String('http://youtube.com/watch?v=' + videoID),
-      requester: member.toString(),
-      title: String(video.snippet.title),
-      duration: convertDuration(video.contentDetails.duration)
+      songQueue.push({
+        video_ID: videoID,
+        link: String('http://youtube.com/watch?v=' + videoID),
+        requester: member.toString(),
+        title: String(video.snippet.title),
+        duration: convertDuration(video.contentDetails.duration)
+      })
+
+      if (!suppress) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
+      resolve()
     })
 
-    if (callback) callback()
+    .catch((err) => {
+      if (err === 'EMPTY_VID') return
+      else {
+        mh.logConsole('err', err)
+        mh.logChannel(mchannel, 'err', 'Error while parsing link. Please make sure the URL is valid.')
+        reject(err)
+      }
+    })
   })
 }
 
 // Function: Queues an entire playlist
-function addPlaylist (playlistID, member, callback) {
-  if (!radioMode) mh.logChannel(mchannel, 'musinf', 'Fetching playlist information...')
-  yth.getPlaylist(playlistID, (err, playlist) => {
-    if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing playlist URL. Please make sure the URL is valid.')
-    if (playlist.length === 0) return mh.logChannel(mchannel, 'err', 'The input playlist is empty. Please queue a non-empty playlist.')
+function addPlaylist (playlistID, member) {
+  return new Promise((resolve, reject) => {
+    if (!radioMode) mh.logChannel(mchannel, 'musinf', 'Fetching playlist information...')
 
-    for (const index in playlist) {
-      addSong(playlist[index].snippet.resourceId.videoId, member, true, () => {
-        if ((playlist[playlist.length - 1] === playlist[index]) && (typeof callback === 'function')) callback()
-      })
-    }
+    yth.getPlaylist(playlistID)
+    .then((playlist) => {
+      if (playlist.length === 0) return mh.logChannel(mchannel, 'err', 'The input playlist is empty. Please queue a non-empty playlist.')
+
+      for (const index in playlist) {
+        addSong(playlist[index].snippet.resourceId.videoId, member, true)
+        .then(() => {
+          if (playlist[playlist.length - 1] === playlist[index]) resolve()
+        })
+      }
+    })
+
+    .catch((err) => {
+      if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing playlist URL. Please make sure the URL is valid.')
+    })
   })
 }
 
