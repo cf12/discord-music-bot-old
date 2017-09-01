@@ -2,72 +2,84 @@
   "help": {
     "format": "help",
     "description": "Shows the manual page for every command",
+    "long_description": "A command that summarizes all of the commands for the bot",
     "sub": []
   },
 
   "ping": {
     "format": "ping",
     "description": "Pings the bot",
+    "long_description": "A testing command that tests the latency and availability of the bot",
     "sub": []
   },
 
   "play": {
     "format": "play [url]",
     "description": "Plays a YouTube link in the voice channel (Video / Playlist)",
+    "long_description": "Plays a YouTube video using its respective URL link. If the URL contains a playlist, the bot will queue the entire playlist instead of a singular video.",
     "sub": []
   },
 
   "shuffle": {
     "format": "shuffle {ON / OFF}",
-    "description": "Plays a YouTube link in the voice channel (Video / Playlist)",
+    "description": "Toggles shuffling for the queue",
+    "long_description": "Enables / Disables randomly picking tracks from the queue.",
     "sub": []
   },
 
   "requeue": {
     "format": "requeue",
-    "description": "Queues the previously played song",
+    "description": "Queues the previously played track",
+    "long_description": "Queues the previously played track. If no track was queued previously, the bot will prompt the user to queue a track.",
     "sub": []
   },
 
   "queue": {
     "format": "queue",
-    "description": "Displays the current queue of songs",
+    "description": "Displays the current queue of tracks",
+    "long_description": "Displays the titles and durations of all the tracks in the queue.",
     "sub": []
   },
 
   "skip": {
     "format": "skip",
-    "description": "Skips the current song",
+    "description": "Skips the current track",
+    "long_description": "Skips the current track queued.",
     "sub": []
   },
 
   "np": {
     "format": "np",
-    "description": "Shows the details of the currently playing song",
+    "description": "Shows the details of the currently playing track",
+    "long_description": "Shows the title and duration of the currently playing track.",
     "sub": []
   },
 
   "leave": {
     "format": "leave",
-    "description": "Disconnects the bot from the voice channel, and clears the playlist",
+    "description": "Disconnects the bot from the voice channel, and clears the queue",
+    "long_description": "Forces the bot to leave the voice channel, and clears the queue. Requeue remains usable.",
     "sub": []
   },
 
   "volume": {
     "format": "volume [1-100]",
-    "description": "Adjusts the volume of the song",
+    "description": "Adjusts the volume of the track",
+    "long_description": "Sets the volume of the bot to a value between 1 and 100. The volume is calculated internally based on a scale factor applied on decibal values.",
     "sub": []
   },
 
   "radio": {
     "format": "radio",
     "description": "Controls the radio functions of the bot",
+    "long_description": "Base command for all radio functionalities of the bot. The radios are premade YouTube Playlists that are queued, but skip is disabled, and shuffle is on by default.",
     "sub": [
-        {
+      {
         "radio": {
           "info": {
             "format": "radio",
-            "description": "Controls the radio functions of the bot"
+            "description": "Controls the radio functions of the bot",
+            "long_description": ""
           }
         }
       }

@@ -42,17 +42,13 @@ bot.login(cfg.bot_token)
 // On: Bot ready
 bot.on('ready', () => {
   console.log('BOT >> Music Bot started')
-  bot.user.setPresence({ game: { name: 'v1.2.0 - By CF12', type: 0 } })
+  bot.user.setPresence({ game: { name: `v${cfg.version} - By CF12`, type: 0 } })
 })
 
 // On: Message Creation
 bot.on('message', (msg) => {
   /*
-   * TODO: Repeats
    * TODO: Temporary DJ's
-   * TODO: Confirm proper durations on videos
-   * TODO: Add radios
-   * TODO: Redo Queue Listings
    * TODO: Fix Queue Listings for Radio Mode
    */
 
@@ -70,9 +66,13 @@ bot.on('message', (msg) => {
   if (cmd === 'HELP') {
     let options = {
       title: '',
-      description: ' __[] = required arguments; {} = optional arguments__',
+      description: `[] = **required** arguments, {} = **optional** arguments\nUse **${pf}help [command]** for more details regarding that command. `,
       color: 4322503,
-      fields: []
+      fields: [],
+      footer: {
+        text: `v${cfg.version} - Developed By @CF12#1240 - https://github.com/CF12/music-bot`,
+        icon_url: 'http://i.imgur.com/OAqzbEI.png'
+      }
     }
 
     if (args.length === 0) {
@@ -85,7 +85,26 @@ bot.on('message', (msg) => {
         })
       }
     } else if (args.length === 1) {
-      if (!Object.keys(helpfile).includes(args[0].toUpperCase())) return mh.logChannel(mchannel, 'err', 'Couldn\')
+      let input = args[0].toLowerCase()
+
+      if (!Object.keys(helpfile).includes(input)) return mh.logChannel(mchannel, 'err', `Couldn't find help entry for **${pf}${input}**`)
+      else {
+        options.title = `:grey_question: ❱❱ COMMAND HELP - ${pf}${input}`
+
+        options.fields.push(
+          {
+            name: 'Usage',
+            value: pf + helpfile[input].format
+          }
+        )
+
+        options.fields.push(
+          {
+            name: 'Detailed Description',
+            value: helpfile[input].long_description
+          }
+        )
+      }
     }
 
     mchannel.send({ embed: options })
