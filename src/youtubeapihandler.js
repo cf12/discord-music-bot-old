@@ -42,30 +42,6 @@ module.exports = class YTApiHandler {
     })
   }
 
-  // getPlaylist (playlistID) {
-  //   return new Promise((resolve, reject) => {
-  //     let options = {
-  //       url: this.options.base + '/playlistItems/?part=snippet&maxResults=50&playlistId=' + playlistID + '&key=' + this.apiKey,
-  //       method: 'GET',
-  //       dataType: 'json'
-  //     }
-
-  //     req(options, (err, res) => {
-  //       if (!err && res.statusCode === 200) {
-  //         if (res.body.nextPageToken) {
-  //           try {
-  //             this.getCompletePlaylist(playlistID, undefined, (playlist) => {
-  //               resolve(playlist)
-  //             })
-  //           } catch (err) {
-  //             if (err) reject(err)
-  //           }
-  //         } else resolve(res.body.items)
-  //       } else reject(err)
-  //     })
-  //   })
-  // }
-
   getPlaylist (playlistID) {
     return new Promise((resolve, reject) => {
       let self = this
