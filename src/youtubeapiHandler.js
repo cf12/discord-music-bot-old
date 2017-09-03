@@ -19,7 +19,7 @@ module.exports = class YTApiHandler {
       req(options, (err, res) => {
         if (!err && res.statusCode === 200) {
           if (res.body.items.pageInfo.totalResults === 0) reject('EMPTY_SEARCH')
-          resolve(undefined, (res.body))
+          resolve(res.body)
         } else reject(err)
       })
     })
