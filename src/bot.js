@@ -177,20 +177,16 @@ bot.on('message', (msg) => {
       if (!Object.keys(helpfile).includes(input)) return mh.logChannel(mchannel, 'err', `Couldn't find help entry for **${pf}${input}**`)
       else {
         options.title = `:grey_question: ❱❱ COMMAND HELP - ${pf}${input}`
-
-        options.fields.push(
+        options.fields = [
           {
             name: 'Usage',
             value: pf + helpfile[input].format
-          }
-        )
-
-        options.fields.push(
+          },
           {
             name: 'Detailed Description',
             value: helpfile[input].long_description
           }
-        )
+        ]
       }
     }
 
