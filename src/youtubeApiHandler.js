@@ -8,17 +8,17 @@ module.exports = class YTApiHandler {
     }
   }
 
-  search (query, numRequests) {
+  search (query, maxRequests) {
     return new Promise((resolve, reject) => {
       let options = {
-        url: `${this.options.base}/search?q=${query}&maxResults=${numRequests}&part=snippet&key=${this.apiKey}`,
+        url: `${this.options.base}/search?q="${query}"&maxResults=${maxRequests}&part=snippet&key=${this.apiKey}`,
         method: 'GET',
         dataType: 'json'
       }
 
       req(options, (err, res) => {
         if (!err && res.statusCode === 200) {
-          if (res.body.items.pageInfo.totalResults === 0) reject('EMPTY_SEARCH')
+          if (res.body.pageInfo.totalResults === 0) reject('EMPTY_SEARCH')
           resolve(res.body)
         } else reject(err)
       })

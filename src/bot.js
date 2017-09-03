@@ -35,7 +35,8 @@ let state = {
   responseCapture: {
     count: 0,
     handler: undefined
-  }
+  },
+  searchResults: []
 }
 
 function resetResponseCapture () {
@@ -210,6 +211,8 @@ bot.on('message', (msg) => {
     if (radioMode) return mh.logChannel(mchannel, 'err', 'Songs cannot be queued while the bot is in radio mode!')
     if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 5000)) return
 
+    if (state.searchResults.length && !isNaN )
+
     parseYTUrl(args[0])
     .then((data) => {
       function queueTrack (sourceID) {
@@ -284,6 +287,41 @@ bot.on('message', (msg) => {
     .catch((err) => {
       if (err) mh.logChannel(mchannel, 'err', 'Error while parsing URL. Please make sure the URL is a valid YouTube link.')
     })
+    return
+  }
+
+  // Command: Search YouTube for tracks
+  if (cmd === 'SEARCH') {
+    if (args.length === 0) mh.logChannel(mchannel, 'err', `Invalid usage! Usage: ${pf}search [phrase]`)
+    else {
+      yth.search(args.join('+'), 5)
+      .then((res) => {
+        state.searchResults = res.items
+        let options = {
+          title: ':mag: ❱❱ SEARCH RESULTS',
+          color: 16007746, // Light Red
+          description: `List of results for search phrase: **${args.join(' ')}**`,
+          fields: [],
+          footer: {
+            text: ''
+          }
+        }
+
+        for (let i = 0; i < res.items.length; i++) {
+          options.fields.push({
+            name: `[${i + 1}] - ${res.items[i].snippet.title}`,
+            value: `UPLOADED BY: ${res.items[i].snippet.channelTitle}`
+          })
+        }
+
+        mchannel.send({ embed: options })
+      })
+      .catch((err) => {
+        if (err === 'EMPTY_SEARCH') mh.logChannel(mchannel, 'info', `No results were found for search phrase: **${args.join(' ')}**`)
+        else throw err
+      })
+    }
+
     return
   }
 
@@ -414,7 +452,6 @@ bot.on('message', (msg) => {
       if (args.length === 1) {
         radioMode = false
         mh.logChannel(mchannel, 'radioinf', 'Ending radio stream.')
-
         songQueue = []
         dispatcher.end()
         voiceConnection = undefined
@@ -423,10 +460,8 @@ bot.on('message', (msg) => {
 
       return mh.logChannel(mchannel, 'err', 'Invalid arguments! Usage: **' + pf + 'radio off**')
     }
-
     return mh.logChannel(mchannel, 'err', 'Invalid usage! For help, use **' + pf + 'radio help.** ')
   }
-
   return mh.logChannel(mchannel, 'err', 'Invalid command! For a list of commands, do: **' + pf + 'help**')
 })
 

@@ -35,41 +35,41 @@ let embeds = {
   }
 }
 
-function logChannel (channel, type, msg) {
+function logChannel (channel, type, content, args = {}) {
   switch (type) {
     case 'info':
       return channel.send({
-        embed: Object.assign(embeds.info, { description: msg })
+        embed: Object.assign(embeds.info, { description: content })
       })
 
     case 'err':
       return channel.send({
-        embed: Object.assign(embeds.err, { description: msg })
+        embed: Object.assign(embeds.err, { description: content })
       })
 
     case 'delay':
       return channel.send({
-        embed: Object.assign(embeds.delay, { description: msg })
+        embed: Object.assign(embeds.delay, { description: content })
       })
 
     case 'musinf':
       return channel.send({
-        embed: Object.assign(embeds.musinf, { description: msg })
+        embed: Object.assign(embeds.musinf, { description: content })
       })
 
     case 'vol':
       return channel.send({
-        embed: Object.assign(embeds.vol, { description: msg })
+        embed: Object.assign(embeds.vol, { description: content })
       })
 
     case 'bl':
       return channel.send({
-        embed: Object.assign(embeds.bl, { description: msg })
+        embed: Object.assign(embeds.bl, { description: content })
       })
 
     case 'radioinf':
       return channel.send({
-        embed: Object.assign(embeds.radioinf, { description: msg })
+        embed: Object.assign(embeds.radioinf, { description: content })
       })
 
     default:
