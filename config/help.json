@@ -16,7 +16,7 @@
   "play": {
     "format": "play [url]",
     "description": "Plays a YouTube link in the voice channel (Video / Playlist)",
-    "long_description": "Plays a YouTube video using its respective URL link. If the URL contains a playlist, the bot will queue the entire playlist instead of a singular video.",
+    "long_description": "Plays a YouTube video using its respective URL link. If the URL contains a playlist, the bot will queue the entire playlist instead of a singular video. Additionally, if a search exists cached, the bot can queue straight from the search results, using the respective number of the result.",
     "sub": []
   },
 
@@ -24,6 +24,13 @@
     "format": "shuffle {ON / OFF}",
     "description": "Toggles shuffling for the queue",
     "long_description": "Enables / Disables randomly picking tracks from the queue.",
+    "sub": []
+  },
+
+  "search": {
+    "format": "search [phrase]",
+    "description": "Searches on YouTube for the phrase given",
+    "long_description": "Displays the 5 most relevant results pulled from YouTube search based on the phrase given.",
     "sub": []
   },
 
