@@ -150,6 +150,44 @@ bot.on('message', (msg) => {
   let cmd = fullMsgArray[0].slice(1, fullMsgArray[0].length).toUpperCase()
   let args = fullMsgArray.slice(1, fullMsgArray.length)
 
+  // Voice Functions
+  function queueTrack (sourceID) {
+    addTrack(sourceID, msg.member, false)
+      .then(() => {
+        if (!voiceConnection) voiceConnect(member.voiceChannel)
+        prevPlayed = {
+          type: 'video',
+          id: sourceID
+        }
+      })
+      .catch((err) => {
+        if (err === 'EMPTY_VID') mh.logChannel(mchannel, 'err', 'This video appears to be invalid / empty. Please double check the URL.')
+        else {
+          mh.logConsole('err', err)
+          mh.logChannel(mchannel, 'err', 'An unknown error has occured while parsing the link through the YouTube API. Please make sure the URL is valid. If all else fails, contact @CF12#1240.')
+        }
+      })
+  }
+
+  function queuePlaylist (sourceID) {
+    addPlaylist(sourceID, member)
+      .then(() => {
+        mh.logChannel(mchannel, 'info', 'Playlist successfully added!')
+        if (!voiceConnection) voiceConnect(member.voiceChannel)
+        prevPlayed = {
+          type: 'playlist',
+          id: sourceID
+        }
+      })
+      .catch((err) => {
+        if (err === 'EMPTY_VID') mh.logChannel(mchannel, 'err', 'This video appears to be invalid / empty. Please double check the URL.')
+        else {
+          mh.logConsole('err', err)
+          mh.logChannel(mchannel, 'err', 'An unknown error has occured while parsing the link through the YouTube API. Please make sure the URL is valid. If all else fails, contact @CF12#1240.')
+        }
+      })
+  }
+
   // Command: Help
   if (cmd === 'HELP') {
     let options = {
@@ -207,41 +245,24 @@ bot.on('message', (msg) => {
     if (radioMode) return mh.logChannel(mchannel, 'err', 'Songs cannot be queued while the bot is in radio mode!')
     if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 5000)) return
 
-    if (state.searchResults.length && !isNaN )
+    if (state.searchResults.length) {
+      let arg = parseInt(args[0])
+      if (!isNaN(arg) && isFinite(arg) && arg > 0 && arg <= state.searchResults.length) {
+        switch (state.searchResults[arg - 1].id.kind) {
+          case 'youtube#video':
+            queueTrack(state.searchResults[arg - 1].id.videoId)
+            break
+          case 'youtube#playlist':
+            queuePlaylist(state.searchResults[arg - 1].id.playlistId)
+            break
+          default: throw new Error('Invalid search result item type in YT type handler for play command')
+        }
+        return
+      }
+    }
 
     parseYTUrl(args[0])
     .then((data) => {
-      function queueTrack (sourceID) {
-        addTrack(sourceID, msg.member, false)
-          .then(() => {
-            if (!voiceConnection) voiceConnect(member.voiceChannel)
-            prevPlayed = data.id
-          })
-          .catch((err) => {
-            if (err === 'EMPTY_VID') mh.logChannel(mchannel, 'err', 'This video appears to be invalid / empty. Please double check the URL.')
-            else {
-              mh.logConsole('err', err)
-              mh.logChannel(mchannel, 'err', 'An unknown error has occured while parsing the link through the YouTube API. Please make sure the URL is valid. If all else fails, contact @CF12#1240.')
-            }
-          })
-      }
-
-      function queuePlaylist (sourceID) {
-        addPlaylist(sourceID, member)
-          .then(() => {
-            mh.logChannel(mchannel, 'info', 'Playlist successfully added!')
-            if (!voiceConnection) voiceConnect(member.voiceChannel)
-            prevPlayed = data.id
-          })
-          .catch((err) => {
-            if (err === 'EMPTY_VID') mh.logChannel(mchannel, 'err', 'This video appears to be invalid / empty. Please double check the URL.')
-            else {
-              mh.logConsole('err', err)
-              mh.logChannel(mchannel, 'err', 'An unknown error has occured while parsing the link through the YouTube API. Please make sure the URL is valid. If all else fails, contact @CF12#1240.')
-            }
-          })
-      }
-
       switch (data.type) {
         case 'video':
           queueTrack(data.id)
@@ -299,14 +320,14 @@ bot.on('message', (msg) => {
           description: `List of results for search phrase: **${args.join(' ')}**`,
           fields: [],
           footer: {
-            text: ''
+            text: `You can queue a track directly from the search list by using ${pf}play [# of entry]. Example: ${pf}play 2`
           }
         }
 
         for (let i = 0; i < res.items.length; i++) {
           options.fields.push({
             name: `[${i + 1}] - ${res.items[i].snippet.title}`,
-            value: `UPLOADED BY: ${res.items[i].snippet.channelTitle}`
+            value: `Uploader: ${res.items[i].snippet.channelTitle} | Type: ${res.items[i].id.kind.split('#')[1]}`
           })
         }
 
@@ -338,17 +359,20 @@ bot.on('message', (msg) => {
   if (cmd === 'REQUEUE') {
     if (!prevPlayed) return mh.logChannel(mchannel, 'err', 'Previous Queue is empty. Queue something before using this command.')
     if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 5000)) return
-    if (prevPlayed.slice(0, 2) === 'p:') {
-      addPlaylist(prevPlayed.slice(2), member)
-      .then(() => {
-        mh.logChannel(mchannel, 'info', 'Playlist successfully re-queued!')
-        if (!voiceConnection) voiceConnect(member.voiceChannel)
-      })
-    } else {
-      addTrack(prevPlayed, member, false)
-      .then(() => {
-        if (!voiceConnection) voiceConnect(member.voiceChannel)
-      })
+    switch (prevPlayed.type) {
+      case 'video':
+        addTrack(prevPlayed.id, member)
+        .then(() => {
+          mh.logChannel(mchannel, 'info', 'Playlist successfully re-queued!')
+          if (!voiceConnection) voiceConnect(member.voiceChannel)
+        })
+        break
+      case 'playlist':
+        addPlaylist(prevPlayed.id, member, false)
+        .then(() => {
+          if (!voiceConnection) voiceConnect(member.voiceChannel)
+        })
+        break
     }
     return
   }
