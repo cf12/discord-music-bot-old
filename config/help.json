@@ -1,106 +1,92 @@
 {
   "help": {
-    "info": {
-      "format": "help",
-      "description": "Shows the manual page for every command"
-    },
-
+    "format": "help",
+    "description": "Shows the manual page for every command",
+    "long_description": "A command that summarizes all of the commands for the bot",
     "sub": []
   },
 
   "ping": {
-    "info": {
-      "format": "ping",
-      "description": "Pings the bot"
-    },
-
+    "format": "ping",
+    "description": "Pings the bot",
+    "long_description": "A testing command that tests the latency and availability of the bot",
     "sub": []
   },
 
   "play": {
-    "info": {
-      "format": "play (url)",
-      "description": "Plays a YouTube link in the voice channel (Video / Playlist)"
-    },
-
+    "format": "play [url]",
+    "description": "Plays a YouTube link in the voice channel (Video / Playlist)",
+    "long_description": "Plays a YouTube video using its respective URL link. If the URL contains a playlist, the bot will queue the entire playlist instead of a singular video. Additionally, if a search exists cached, the bot can queue straight from the search results, using the respective number of the result.",
     "sub": []
   },
 
   "shuffle": {
-    "info": {
-      "format": "shuffle {ON / OFF}",
-      "description": "Plays a YouTube link in the voice channel (Video / Playlist)"
-    },
+    "format": "shuffle {ON / OFF}",
+    "description": "Toggles shuffling for the queue",
+    "long_description": "Enables / Disables randomly picking tracks from the queue.",
+    "sub": []
+  },
 
+  "search": {
+    "format": "search [phrase]",
+    "description": "Searches on YouTube for the phrase given",
+    "long_description": "Displays the 5 most relevant results pulled from YouTube search based on the phrase given.",
     "sub": []
   },
 
   "requeue": {
-    "info": {
-      "format": "requeue",
-      "description": "Queues the previously played song"
-    },
-
+    "format": "requeue",
+    "description": "Queues the previously played track",
+    "long_description": "Queues the previously played track. If no track was queued previously, the bot will prompt the user to queue a track.",
     "sub": []
   },
 
   "queue": {
-    "info": {
-      "format": "queue",
-      "description": "Displays the current queue of songs"
-    },
-
+    "format": "queue",
+    "description": "Displays the current queue of tracks",
+    "long_description": "Displays the titles and durations of all the tracks in the queue.",
     "sub": []
   },
 
   "skip": {
-    "info": {
-      "format": "skip",
-      "description": "Skips the current song"
-    },
-
+    "format": "skip",
+    "description": "Skips the current track",
+    "long_description": "Skips the current track queued.",
     "sub": []
   },
 
   "np": {
-    "info": {
-      "format": "np",
-      "description": "Shows the details of the currently playing song"
-    },
-
+    "format": "np",
+    "description": "Shows the details of the currently playing track",
+    "long_description": "Shows the title and duration of the currently playing track.",
     "sub": []
   },
 
   "leave": {
-    "info": {
-      "format": "leave",
-      "description": "Disconnects the bot from the voice channel, and clears the playlist"
-    },
-
+    "format": "leave",
+    "description": "Disconnects the bot from the voice channel, and clears the queue",
+    "long_description": "Forces the bot to leave the voice channel, and clears the queue. Requeue remains usable.",
     "sub": []
   },
 
   "volume": {
-    "info": {
-      "format": "volume [1-100]",
-      "description": "Adjusts the volume of the song"
-    },
-
+    "format": "volume [1-100]",
+    "description": "Adjusts the volume of the track",
+    "long_description": "Sets the volume of the bot to a value between 1 and 100. The volume is calculated internally based on a scale factor applied on decibal values.",
     "sub": []
   },
 
   "radio": {
-    "info": {
-      "format": "radio",
-      "description": "Controls the radio functions of the bot"
-    },
-
+    "format": "radio",
+    "description": "Controls the radio functions of the bot",
+    "long_description": "Base command for all radio functionalities of the bot. The radios are premade YouTube Playlists that are queued, but skip is disabled, and shuffle is on by default.",
     "sub": [
-        {
+      {
         "radio": {
           "info": {
             "format": "radio",
-            "description": "Controls the radio functions of the bot"
+            "description": "Controls the radio functions of the bot",
+            "long_description": ""
           }
         }
       }

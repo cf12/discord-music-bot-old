@@ -3,15 +3,18 @@ const DiscordJS = require('discord.js')
 const fs = require('fs')
 const path = require('path')
 const ytdl = require('ytdl-core')
-const YouTubeAPIHandler = require('./youtubeapihandler')
-const mh = require('./messagehandler')
+const YouTubeAPIHandler = require('./youtubeApiHandler')
+const mh = require('./messageHandler')
+
+// Init Config Vars
+let cfg, helpfile, blacklist, radiolist
 
 // Load Files
 try {
-  var cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'config.json')), 'utf8')
-  var helpfile = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'help.json')), 'utf8')
-  var blacklist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'blacklist.json')), 'utf8')
-  var radiolist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'radio_playlists.json')), 'utf8')
+  cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'config.json')), 'utf8')
+  helpfile = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'help.json')), 'utf8')
+  blacklist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'blacklist.json')), 'utf8')
+  radiolist = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'radio_playlists.json')), 'utf8')
 } catch (err) {
   if (err) throw err
 }
@@ -21,19 +24,63 @@ const bot = new DiscordJS.Client()
 const yth = new YouTubeAPIHandler(cfg.youtube_api_key)
 
 // Variable Declaration
+let voiceConnection, voiceChannel, dispatcher, stream, nowPlaying, prevPlayed, mchannel
 let pf = '$'
-let voiceConnection
-let voiceChannel
-let dispatcher
 let songQueue = []
 let volume = 0.15
-let mchannel
 let radioMode = false
 let shuffle = false
-let stream
-let nowPlaying
-let prevPlayed
 let lastMsgTimestamp = 0
+let state = {
+  responseCapture: {
+    count: 0,
+    handler: undefined
+  },
+  searchResults: []
+}
+
+function resetResponseCapture () {
+  state.responseCapture = {
+    count: 0,
+    handler: undefined
+  }
+}
+
+class ResponseCapturer {
+  constructor (options) {
+    this.msg = options.msg
+    this.senderID = options.senderID
+    this.senderTag = options.senderTag
+    this.timeout = options.timeout
+    this.choices = options.choices
+    this.onCapture = options.onCapture
+  }
+
+  sendMsg (mchannel) {
+    let options = {
+      embed: {
+        title: ':notepad_spiral: ❱❱ SELECTION',
+        color: 16580431, // Yellow
+        description: `${this.msg}\nType **"quit"** to cancel the response selection.`,
+        fields: []
+      }
+    }
+
+    for (let i = 0; i < this.choices.length; i++) {
+      options.embed.fields.push({
+        name: `[${i + 1}]`,
+        value: this.choices[i]
+      })
+    }
+
+    mchannel.send(this.senderTag, options)
+  }
+
+  registerResult (res) {
+    this.onCapture(res - 1)
+    clearTimeout(this.timeout)
+  }
+}
 
 // Init Bot
 bot.login(cfg.bot_token)
@@ -45,22 +92,56 @@ bot.login(cfg.bot_token)
 // On: Bot ready
 bot.on('ready', () => {
   console.log('BOT >> Music Bot started')
-  bot.user.setGame('v1.5.4 - By CF12')
+  bot.user.setPresence({ game: { name: `v${cfg.version} - By CF12`, type: 0 } })
 })
 
 // On: Message Creation
 bot.on('message', (msg) => {
   /*
-   * TODO: Repeats
    * TODO: Temporary DJ's
-   * TODO: Confirm proper durations on videos
-   * TODO: Add radios
-   * TODO: Redo Queue Listings
    * TODO: Fix Queue Listings for Radio Mode
    */
 
-  // Cancels messages without pf or user is a bot
-  if (msg.author.bot || !msg.content.startsWith(pf)) return
+  // Cancels messages if user is bot
+  if (msg.author.bot) return
+
+  // Response Capturer for user prompts
+  if (state.responseCapture.handler) {
+    if (state.responseCapture.handler.senderID !== msg.member.id) return
+
+    if (state.responseCapture.count === 3) {
+      resetResponseCapture()
+      mh.logChannel(mchannel, 'info', 'Cancelling response... [Too many responses]')
+      return
+    }
+
+    try {
+      if (msg.content.toUpperCase() === 'QUIT') {
+        resetResponseCapture()
+        mh.logChannel(mchannel, 'info', 'Cancelling response...')
+        return
+      } else if (state.responseCapture.handler.choices[parseInt(msg.content) - 1]) {
+        state.responseCapture.handler.registerResult(parseInt(msg.content))
+        resetResponseCapture()
+        return
+      } else {
+        state.responseCapture.count++
+        mh.logChannel(mchannel, 'err', 'Invalid response! Please use a valid number in your response. Type "quit" if you wish to cancel the prompt')
+        return
+      }
+    } catch (err) {
+      if (err) {
+        state.responseCapture.count++
+        mh.logChannel(mchannel, 'err', 'Invalid response! Please use a valid number in your response. Type "quit" if you wish to cancel the prompt')
+        return
+      }
+    }
+
+    return
+  }
+
+  // Cancels messages if no command prefix is detected
+  if (!msg.content.startsWith(pf)) return
 
   // Command variables
   mchannel = msg.channel
@@ -69,29 +150,94 @@ bot.on('message', (msg) => {
   let cmd = fullMsgArray[0].slice(1, fullMsgArray[0].length).toUpperCase()
   let args = fullMsgArray.slice(1, fullMsgArray.length)
 
+  // Voice Functions
+  function queueTrack (sourceID) {
+    addTrack(sourceID, msg.member, false)
+      .then(() => {
+        if (!voiceConnection) voiceConnect(member.voiceChannel)
+        prevPlayed = {
+          type: 'video',
+          id: sourceID
+        }
+      })
+      .catch((err) => {
+        if (err === 'EMPTY_VID') mh.logChannel(mchannel, 'err', 'This video appears to be invalid / empty. Please double check the URL.')
+        else {
+          mh.logConsole('err', err)
+          mh.logChannel(mchannel, 'err', 'An unknown error has occured while parsing the link through the YouTube API. Please make sure the URL is valid. If all else fails, contact @CF12#1240.')
+        }
+      })
+  }
+
+  function queuePlaylist (sourceID) {
+    addPlaylist(sourceID, member)
+      .then(() => {
+        mh.logChannel(mchannel, 'info', 'Playlist successfully added!')
+        if (!voiceConnection) voiceConnect(member.voiceChannel)
+        prevPlayed = {
+          type: 'playlist',
+          id: sourceID
+        }
+      })
+      .catch((err) => {
+        if (err === 'EMPTY_VID') mh.logChannel(mchannel, 'err', 'This video appears to be invalid / empty. Please double check the URL.')
+        else {
+          mh.logConsole('err', err)
+          mh.logChannel(mchannel, 'err', 'An unknown error has occured while parsing the link through the YouTube API. Please make sure the URL is valid. If all else fails, contact @CF12#1240.')
+        }
+      })
+  }
+
   // Command: Help
   if (cmd === 'HELP') {
-    let msg = '__**COMMAND HELP:**__\n**===============================**\n*Syntax: [] = required arguments; {} = optional arguments*\n\n'
-    for (let key in helpfile) {
-      msg += '**' + pf + key + '**' + ' - ' + helpfile[key].info.description + '\n'
+    let options = {
+      title: '',
+      description: `[] = **required** arguments, {} = **optional** arguments\nUse **${pf}help [command]** for more details regarding that command. `,
+      color: 4322503,
+      fields: [],
+      footer: {
+        text: `v${cfg.version} - Developed By @CF12#1240 - https://github.com/CF12/music-bot`,
+        icon_url: 'http://i.imgur.com/OAqzbEI.png'
+      }
     }
 
-    mchannel.sendMessage(msg)
+    if (args.length === 0) {
+      options.title = ':grey_question: ❱❱ COMMAND HELP'
+
+      for (let key in helpfile) {
+        options.fields.push({
+          name: `**${pf}${helpfile[key].format}**`,
+          value: helpfile[key].description
+        })
+      }
+    } else if (args.length === 1) {
+      let input = args[0].toLowerCase()
+
+      if (!Object.keys(helpfile).includes(input)) return mh.logChannel(mchannel, 'err', `Couldn't find help entry for **${pf}${input}**`)
+      else {
+        options.title = `:grey_question: ❱❱ COMMAND HELP - ${pf}${input}`
+        options.fields = [
+          {
+            name: 'Usage',
+            value: pf + helpfile[input].format
+          },
+          {
+            name: 'Detailed Description',
+            value: helpfile[input].long_description
+          }
+        ]
+      }
+    }
+
+    mchannel.send({ embed: options })
     return
   }
 
   // Command: Ping
   if (cmd === 'PING') return mh.logChannel(mchannel, 'info', 'Pong!')
 
-  // Command: DB
-  if (cmd === 'DB') {
-    console.log(volume)
-    return
-  }
-
   // Command: Play from YouTube Link
   if (cmd === 'PLAY') {
-    let sourceID
     if (!member.voiceChannel) return mh.logChannel(mchannel, 'err', 'User is not in a voice channel!')
     if (args.length === 0) return mh.logChannel(mchannel, 'info', 'Adds a YouTube link to the playlist. Usage: *' + pf + 'play [url]*')
     if (args.length > 1) return mh.logChannel(mchannel, 'err', 'Invalid usage! Usage: ' + pf + 'play [url]')
@@ -99,29 +245,99 @@ bot.on('message', (msg) => {
     if (radioMode) return mh.logChannel(mchannel, 'err', 'Songs cannot be queued while the bot is in radio mode!')
     if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 5000)) return
 
-    try {
-      sourceID = parseYTUrl(args[0])
-    } catch (err) {
-      return mh.logChannel(mchannel, 'err', 'Error while parsing URL. Please make sure the URL is a valid YouTube link.')
+    if (state.searchResults.length) {
+      let arg = parseInt(args[0])
+      if (!isNaN(arg) && isFinite(arg) && arg > 0 && arg <= state.searchResults.length) {
+        switch (state.searchResults[arg - 1].id.kind) {
+          case 'youtube#video':
+            queueTrack(state.searchResults[arg - 1].id.videoId)
+            break
+          case 'youtube#playlist':
+            queuePlaylist(state.searchResults[arg - 1].id.playlistId)
+            break
+          default: throw new Error('Invalid search result item type in YT type handler for play command')
+        }
+        return
+      }
     }
 
-    if (sourceID.includes('p:')) {
-      let playlistID = sourceID.substring(2)
-      addPlaylist(playlistID, member, () => {
-        mh.logChannel(mchannel, 'info', 'Playlist successfully added!')
-        if (!voiceConnection) voiceConnect(member.voiceChannel)
-      })
+    parseYTUrl(args[0])
+    .then((data) => {
+      switch (data.type) {
+        case 'video':
+          queueTrack(data.id)
+          break
+        case 'playlist':
+          queuePlaylist(data.id)
+          break
+        case 'hybrid':
+          state.responseCapture = {
+            count: 0,
+            handler: new ResponseCapturer({
+              msg: 'Hybrid Video / Playlist link detected. Please choose the desired action:',
+              choices: ['Queue video', 'Queue entire playlist'],
+              senderID: member.id,
+              senderTag: member.toString(),
+              timeout: setTimeout(() => {
+                resetResponseCapture()
+                mh.logChannel(mchannel, 'info', 'Cancelling response... [Timed out]')
+              }, 10000),
+              onCapture: (res) => {
+                switch (res) {
+                  case 0:
+                    queueTrack(data.videoID)
+                    break
+                  case 1:
+                    queuePlaylist(data.playlistID)
+                    break
+                }
+              }
+            })
+          }
 
-      prevPlayed = sourceID
-
-      return
-    }
-
-    addSong(sourceID, msg.member, false, () => {
-      if (!voiceConnection) voiceConnect(member.voiceChannel)
-
-      prevPlayed = sourceID
+          state.responseCapture.handler.sendMsg(mchannel)
+          break
+        default:
+          throw new Error('Invalid queue type')
+      }
     })
+    .catch((err) => {
+      if (err) mh.logChannel(mchannel, 'err', 'Error while parsing URL. Please make sure the URL is a valid YouTube link.')
+    })
+    return
+  }
+
+  // Command: Search YouTube for tracks
+  if (cmd === 'SEARCH') {
+    if (args.length === 0) mh.logChannel(mchannel, 'err', `Invalid usage! Usage: ${pf}search [phrase]`)
+    else {
+      yth.search(args.join('+'), 5)
+      .then((res) => {
+        state.searchResults = res.items
+        let options = {
+          title: ':mag: ❱❱ SEARCH RESULTS',
+          color: 16007746, // Light Red
+          description: `List of results for search phrase: **${args.join(' ')}**`,
+          fields: [],
+          footer: {
+            text: `You can queue a track directly from the search list by using ${pf}play [# of entry]. Example: ${pf}play 2`
+          }
+        }
+
+        for (let i = 0; i < res.items.length; i++) {
+          options.fields.push({
+            name: `[${i + 1}] - ${res.items[i].snippet.title}`,
+            value: `Uploader: ${res.items[i].snippet.channelTitle} | Type: ${res.items[i].id.kind.split('#')[1]}`
+          })
+        }
+
+        mchannel.send({ embed: options })
+      })
+      .catch((err) => {
+        if (err === 'EMPTY_SEARCH') mh.logChannel(mchannel, 'info', `No results were found for search phrase: **${args.join(' ')}**`)
+        else throw err
+      })
+    }
 
     return
   }
@@ -142,16 +358,21 @@ bot.on('message', (msg) => {
   // Command: Requeue last song
   if (cmd === 'REQUEUE') {
     if (!prevPlayed) return mh.logChannel(mchannel, 'err', 'Previous Queue is empty. Queue something before using this command.')
-    if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 20000)) return
-    if (prevPlayed.slice(0, 2) === 'p:') {
-      addPlaylist(prevPlayed.slice(2), member, () => {
-        mh.logChannel(mchannel, 'info', 'Playlist successfully re-queued!')
-        if (!voiceConnection) voiceConnect(member.voiceChannel)
-      })
-    } else {
-      addSong(prevPlayed, member, false, () => {
-        if (!voiceConnection) voiceConnect(member.voiceChannel)
-      })
+    if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 5000)) return
+    switch (prevPlayed.type) {
+      case 'video':
+        addTrack(prevPlayed.id, member)
+        .then(() => {
+          mh.logChannel(mchannel, 'info', 'Playlist successfully re-queued!')
+          if (!voiceConnection) voiceConnect(member.voiceChannel)
+        })
+        break
+      case 'playlist':
+        addPlaylist(prevPlayed.id, member, false)
+        .then(() => {
+          if (!voiceConnection) voiceConnect(member.voiceChannel)
+        })
+        break
     }
     return
   }
@@ -186,7 +407,7 @@ bot.on('message', (msg) => {
   if (cmd === 'SKIP') {
     if (!voiceConnection) return mh.logChannel(mchannel, 'err', 'The bot is not playing anything currently! Use **' + pf + 'play [url]** to queue a song.')
     if (radioMode) return mh.logChannel(mchannel, 'err', 'Skip is unavailable in radio mode.')
-    if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 15000)) return
+    if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 5000)) return
 
     dispatcher.end()
     return
@@ -216,11 +437,7 @@ bot.on('message', (msg) => {
   // Command: Volume Control
   if (cmd === 'VOLUME') {
     if (args.length === 0) return mh.logChannel(mchannel, 'info', 'Sets the volume of music. Usage: ' + pf + 'volume [1-100]')
-    if (args.length === 1 && args[0].toUpperCase() === 'PINECONE' && (member.user.id === '160891371555782656' || member.user.id === '119495663506554880')) {
-      volume = 10
-      if (dispatcher) dispatcher.setVolume(volume)
-      mh.logChannel(mchannel, 'vol', 'Volume set to: ∞')
-    } else if (args.length === 1 && args[0] <= 100 && args[0] >= 1) {
+    if (args.length === 1 && args[0] <= 100 && args[0] >= 1) {
       volume = args[0] * 0.005
       if (dispatcher) dispatcher.setVolume(volume)
       mh.logChannel(mchannel, 'vol', 'Volume set to: ' + args[0])
@@ -230,9 +447,8 @@ bot.on('message', (msg) => {
 
   if (cmd === 'RADIO') {
     if (args.length === 0) return mh.logChannel(mchannel, 'info', 'Controls the radio features of the bot. For more info, do: **' + pf + 'radio help**')
-    if (args[0].toUpperCase() === 'HELP') return mchannel.sendMessage('__Manual page for: **' + pf + 'radio**__\n**' + pf + 'radio help** - Shows this manual page\n**' + pf + 'radio list** - Displays a list of radio stations\n**' + pf + 'radio set [station]** - Sets the radio to the specified station\n**' + pf + 'radio off** - Deactivates the radio')
+    if (args[0].toUpperCase() === 'HELP') return mchannel.send('__Manual page for: **' + pf + 'radio**__\n**' + pf + 'radio help** - Shows this manual page\n**' + pf + 'radio list** - Displays a list of radio stations\n**' + pf + 'radio set [station]** - Sets the radio to the specified station\n**' + pf + 'radio off** - Deactivates the radio')
     if (args[0].toUpperCase() === 'LIST') return mh.logChannel(mchannel, 'radioinf', '**Available Radio Stations:** ' + Object.keys(radiolist))
-
     if (args[0].toUpperCase() === 'SET') {
       if (args.length === 2) {
         if (voiceConnection) return mh.logChannel(mchannel, 'err', 'Bot cannot be in a voice channel while activating radio mode. Please disconnect the bot by using ' + pf + 'leave.')
@@ -241,7 +457,11 @@ bot.on('message', (msg) => {
 
         radioMode = true
         mh.logChannel(mchannel, 'radioinf', 'NOW PLAYING: Radio Station - **' + args[1] + '**')
-        addPlaylist(radiolist[args[1].toUpperCase()], msg.member, () => { voiceConnect(member.voiceChannel) })
+        addPlaylist(radiolist[args[1].toUpperCase()], msg.member)
+        .then(() => {
+          voiceConnect(member.voiceChannel)
+        })
+
         return
       }
 
@@ -252,7 +472,6 @@ bot.on('message', (msg) => {
       if (args.length === 1) {
         radioMode = false
         mh.logChannel(mchannel, 'radioinf', 'Ending radio stream.')
-
         songQueue = []
         dispatcher.end()
         voiceConnection = undefined
@@ -261,10 +480,8 @@ bot.on('message', (msg) => {
 
       return mh.logChannel(mchannel, 'err', 'Invalid arguments! Usage: **' + pf + 'radio off**')
     }
-
     return mh.logChannel(mchannel, 'err', 'Invalid usage! For help, use **' + pf + 'radio help.** ')
   }
-
   return mh.logChannel(mchannel, 'err', 'Invalid command! For a list of commands, do: **' + pf + 'help**')
 })
 
@@ -273,60 +490,88 @@ bot.on('message', (msg) => {
 */
 
 // Function: Parse YT Url
-function parseYTUrl (url, callback) {
-  let videoID
-
-  if (url.includes('youtube.com') && url.includes('watch?v=')) videoID = url.split('watch?v=')[1].split('#')[0].split('&')[0]
-  else if (url.includes('youtu.be')) videoID = url.split('be/')[1].split('?')[0]
-  else if (url.includes('youtube.com') && url.includes('playlist?list=')) videoID = 'p:' + url.split('playlist?list=')[1]
-  else throw Error('Not a YouTube Link')
-
-  if (callback) return callback(videoID)
-  return videoID
+function parseYTUrl (url) {
+  return new Promise((resolve, reject) => {
+    if (url.includes('youtube.com') && url.includes('watch?v=') && url.includes('&list=')) {
+      resolve({
+        type: 'hybrid',
+        videoID: url.split('watch?v=')[1].split('#')[0].split('&')[0],
+        playlistID: url.split('&list=')[1].split('#')[0].split('&')[0]
+      })
+    } else if (url.includes('youtube.com') && url.includes('watch?v=')) {
+      resolve({
+        type: 'video',
+        id: url.split('watch?v=')[1].split('#')[0].split('&')[0]
+      })
+    } else if (url.includes('youtu.be')) {
+      resolve({
+        type: 'video',
+        id: url.split('be/')[1].split('?')[0]
+      })
+    } else if (url.includes('youtube.com') && url.includes('playlist?list=')) {
+      resolve({
+        type: 'playlist',
+        id: url.split('playlist?list=')[1]
+      })
+    } else reject('INVALID_LINK')
+  })
 }
 
 // Function: Adds song to queue
-function addSong (videoID, member, suppress, callback) {
-  yth.getVideo(videoID, (err, info) => {
-    if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing video(es). Please make sure the URL is valid.')
-    if (info === 'EMPTY_VID') return
-    let video = info.items[0]
-    for (let video of blacklist.songs.videos) {
-      if (!suppress) mh.logChannel(mchannel, 'bl', 'Sorry, but this video is blacklisted.')
-      if (videoID.includes(video)) return
-    }
+function addTrack (videoID, member, suppress) {
+  return new Promise((resolve, reject) => {
+    if (blacklist.songs.videos.includes(videoID) && !suppress) return mh.logChannel(mchannel, 'bl', `Sorry, but this video is blacklisted. **[Video ID in Blacklist]**`)
 
-    for (let keyword of blacklist.songs.keywords) {
-      if (!suppress) mh.logChannel(mchannel, 'bl', 'Sorry, but this video is blacklisted.')
-      if (video.snippet.title.toUpperCase().includes(keyword.toUpperCase())) return
-    }
+    yth.getVideo(videoID)
+    .then((info) => {
+      let video = info.items[0]
 
-    if (!suppress) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
+      for (let keyword of blacklist.songs.keywords) {
+        if (video.snippet.title.toUpperCase().includes(keyword.toUpperCase()) && !suppress) return mh.logChannel(mchannel, 'bl', `Sorry, but this video is blacklisted. **[Keyword: ${keyword}]**`)
+      }
 
-    songQueue.push({
-      video_ID: videoID,
-      link: String('http://youtube.com/watch?v=' + videoID),
-      requester: member.toString(),
-      title: String(video.snippet.title),
-      duration: convertDuration(video.contentDetails.duration)
+      songQueue.push({
+        video_ID: videoID,
+        link: String('http://youtube.com/watch?v=' + videoID),
+        requester: member.toString(),
+        title: String(video.snippet.title),
+        duration: convertDuration(video.contentDetails.duration)
+      })
+
+      if (!suppress) mh.logChannel(mchannel, 'info', 'Song successfully added to queue.')
+      resolve()
     })
 
-    if (callback) callback()
+    .catch((err) => {
+      reject(err)
+    })
   })
 }
 
 // Function: Queues an entire playlist
-function addPlaylist (playlistID, member, callback) {
-  if (!radioMode) mh.logChannel(mchannel, 'musinf', 'Fetching playlist information...')
-  yth.getPlaylist(playlistID, (err, playlist) => {
-    if (err) return mh.logChannel(mchannel, 'err', 'Error while parsing playlist URL. Please make sure the URL is valid.')
-    if (playlist.length === 0) return mh.logChannel(mchannel, 'err', 'The input playlist is empty. Please queue a non-empty playlist.')
+function addPlaylist (playlistID, member) {
+  return new Promise((resolve, reject) => {
+    if (!radioMode) mh.logChannel(mchannel, 'musinf', 'Fetching playlist information...')
 
-    for (const index in playlist) {
-      addSong(playlist[index].snippet.resourceId.videoId, member, true, () => {
-        if ((playlist[playlist.length - 1] === playlist[index]) && (typeof callback === 'function')) callback()
-      })
-    }
+    yth.getPlaylist(playlistID)
+    .then((playlist) => {
+      if (playlist.length === 0) return mh.logChannel(mchannel, 'err', 'The input playlist is empty. Please queue a non-empty playlist.')
+
+      for (const index in playlist) {
+        addTrack(playlist[index].snippet.resourceId.videoId, member, true)
+        .then(() => {
+          if (playlist[playlist.length - 1] === playlist[index]) resolve()
+        })
+        .catch((err) => {
+          if (err === 'EMPTY_VID') return
+          else reject(err)
+        })
+      }
+    })
+
+    .catch((err) => {
+      reject(err)
+    })
   })
 }
 

@@ -1,5 +1,5 @@
 {
+  "version": "1.3.0",
   "bot_token": "",
-  "youtube_api_key": "",
-  "use_keymetrics": false
+  "youtube_api_key": ""
 }
