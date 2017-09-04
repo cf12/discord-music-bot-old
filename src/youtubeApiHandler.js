@@ -11,7 +11,7 @@ module.exports = class YTApiHandler {
   search (query, maxRequests) {
     return new Promise((resolve, reject) => {
       let options = {
-        url: `${this.options.base}/search?q="${query}"&maxResults=${maxRequests}&part=snippet&key=${this.apiKey}`,
+        url: `${this.options.base}/search?q="${query}"&maxResults=${maxRequests}&type=video,playlist&part=snippet&key=${this.apiKey}`,
         method: 'GET',
         dataType: 'json'
       }
