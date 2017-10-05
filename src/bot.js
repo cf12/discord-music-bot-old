@@ -3,8 +3,9 @@ const DiscordJS = require('discord.js')
 const fs = require('fs')
 const path = require('path')
 const ytdl = require('ytdl-core')
-const YouTubeAPIHandler = require('./youtubeApiHandler')
-const mh = require('./messageHandler')
+const YouTubeAPIHandler = require('./YouTubeApiHandler')
+const mh = require('./MessageHandler')
+const GuildHandler = require('./GuildHandler')
 
 // Init Config Vars
 let cfg, helpfile, blacklist, radiolist
@@ -22,6 +23,7 @@ try {
 // Object Construction
 const bot = new DiscordJS.Client()
 const yth = new YouTubeAPIHandler(cfg.youtube_api_key)
+const gh = new GuildHandler()
 
 // Variable Declaration
 let voiceConnection, voiceChannel, dispatcher, stream, nowPlaying, prevPlayed, mchannel
@@ -31,20 +33,6 @@ let volume = 0.15
 let radioMode = false
 let shuffle = false
 let lastMsgTimestamp = 0
-let state = {
-  responseCapture: {
-    count: 0,
-    handler: undefined
-  },
-  searchResults: []
-}
-
-function resetResponseCapture () {
-  state.responseCapture = {
-    count: 0,
-    handler: undefined
-  }
-}
 
 class ResponseCapturer {
   constructor (options) {
@@ -78,6 +66,10 @@ class ResponseCapturer {
 
   registerResult (res) {
     this.onCapture(res - 1)
+    this.removeTimeout()
+  }
+
+  removeTimeout () {
     clearTimeout(this.timeout)
   }
 }
@@ -105,33 +97,37 @@ bot.on('message', (msg) => {
   // Cancels messages if user is bot
   if (msg.author.bot) return
 
-  // Response Capturer for user prompts
-  if (state.responseCapture.handler) {
-    if (state.responseCapture.handler.senderID !== msg.member.id) return
+  // Response Capturer state
+  let responseState = gh.getGuildResponseCapturer(msg.guild.id)
 
-    if (state.responseCapture.count === 3) {
-      resetResponseCapture()
+  // Response Capturer for user prompts
+  if (responseState.handler) {
+    if (responseState.handler.senderID !== msg.member.id) return
+    if (responseState.count === 3) {
+      gh.resetResponseCapturer(msg.guild.id)
+      responseState.handler.removeTimeout()
       mh.logChannel(mchannel, 'info', 'Cancelling response... [Too many responses]')
       return
     }
 
     try {
       if (msg.content.toUpperCase() === 'QUIT') {
-        resetResponseCapture()
+        gh.resetResponseCapturer(msg.guild.id)
+        responseState.handler.removeTimeout()
         mh.logChannel(mchannel, 'info', 'Cancelling response...')
         return
-      } else if (state.responseCapture.handler.choices[parseInt(msg.content) - 1]) {
-        state.responseCapture.handler.registerResult(parseInt(msg.content))
-        resetResponseCapture()
+      } else if (responseState.handler.choices[parseInt(msg.content) - 1]) {
+        responseState.handler.registerResult(parseInt(msg.content))
+        gh.resetResponseCapturer(msg.guild.id)
         return
       } else {
-        state.responseCapture.count++
+        responseState.count++
         mh.logChannel(mchannel, 'err', 'Invalid response! Please use a valid number in your response. Type "quit" if you wish to cancel the prompt')
         return
       }
     } catch (err) {
       if (err) {
-        state.responseCapture.count++
+        responseState.count++
         mh.logChannel(mchannel, 'err', 'Invalid response! Please use a valid number in your response. Type "quit" if you wish to cancel the prompt')
         return
       }
@@ -149,6 +145,9 @@ bot.on('message', (msg) => {
   let fullMsgArray = msg.content.split(' ')
   let cmd = fullMsgArray[0].slice(1, fullMsgArray[0].length).toUpperCase()
   let args = fullMsgArray.slice(1, fullMsgArray.length)
+
+  // Define search result state
+  let searchResultState = gh.getGuildSearchResults(msg.guild.id)
 
   // Voice Functions
   function queueTrack (sourceID) {
@@ -243,17 +242,19 @@ bot.on('message', (msg) => {
     if (args.length > 1) return mh.logChannel(mchannel, 'err', 'Invalid usage! Usage: ' + pf + 'play [url]')
     if (blacklist.users.includes(member.id)) return mh.logChannel(mchannel, 'bl', 'User is blacklisted!')
     if (radioMode) return mh.logChannel(mchannel, 'err', 'Songs cannot be queued while the bot is in radio mode!')
+
+    // Message Cooldown Checking
     if (checkCooldown(msg.createdTimestamp, lastMsgTimestamp, member, 5000)) return
 
-    if (state.searchResults.length) {
+    if (searchResultState.length) {
       let arg = parseInt(args[0])
-      if (!isNaN(arg) && isFinite(arg) && arg > 0 && arg <= state.searchResults.length) {
-        switch (state.searchResults[arg - 1].id.kind) {
+      if (!isNaN(arg) && isFinite(arg) && arg > 0 && arg <= searchResultState.length) {
+        switch (searchResultState[arg - 1].id.kind) {
           case 'youtube#video':
-            queueTrack(state.searchResults[arg - 1].id.videoId)
+            queueTrack(searchResultState[arg - 1].id.videoId)
             break
           case 'youtube#playlist':
-            queuePlaylist(state.searchResults[arg - 1].id.playlistId)
+            queuePlaylist(searchResultState[arg - 1].id.playlistId)
             break
           default: throw new Error('Invalid search result item type in YT type handler for play command')
         }
@@ -271,7 +272,7 @@ bot.on('message', (msg) => {
           queuePlaylist(data.id)
           break
         case 'hybrid':
-          state.responseCapture = {
+          gh.setGuildResponseCapturer(msg.guild.id, {
             count: 0,
             handler: new ResponseCapturer({
               msg: 'Hybrid Video / Playlist link detected. Please choose the desired action:',
@@ -279,7 +280,7 @@ bot.on('message', (msg) => {
               senderID: member.id,
               senderTag: member.toString(),
               timeout: setTimeout(() => {
-                resetResponseCapture()
+                gh.resetResponseCapturer(msg.guild.id)
                 mh.logChannel(mchannel, 'info', 'Cancelling response... [Timed out]')
               }, 10000),
               onCapture: (res) => {
@@ -293,9 +294,9 @@ bot.on('message', (msg) => {
                 }
               }
             })
-          }
+          })
 
-          state.responseCapture.handler.sendMsg(mchannel)
+          gh.getGuildResponseCapturer(msg.guild.id).handler.sendMsg(mchannel)
           break
         default:
           throw new Error('Invalid queue type')
@@ -313,7 +314,7 @@ bot.on('message', (msg) => {
     else {
       yth.search(args.join('+'), 5)
       .then((res) => {
-        state.searchResults = res.items
+        gh.setGuildSearchResults(msg.guild.id, res.items)
         let options = {
           title: ':mag: ❱❱ SEARCH RESULTS',
           color: 16007746, // Light Red
