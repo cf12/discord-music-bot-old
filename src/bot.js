@@ -3,9 +3,11 @@ const DiscordJS = require('discord.js')
 const fs = require('fs')
 const path = require('path')
 const ytdl = require('ytdl-core')
+
+// Import Local Dependencies
 const YouTubeAPIHandler = require('./YouTubeApiHandler')
 const mh = require('./MessageHandler')
-const GuildHandler = require('./GuildHandler')
+const GuildHandler = require('./GuildState')
 
 // Init Config Vars
 let cfg, helpfile, blacklist, radiolist
@@ -23,7 +25,6 @@ try {
 // Object Construction
 const bot = new DiscordJS.Client()
 const yth = new YouTubeAPIHandler(cfg.youtube_api_key)
-const gh = new GuildHandler()
 
 // Variable Declaration
 let voiceConnection, voiceChannel, dispatcher, stream, nowPlaying, prevPlayed, mchannel
@@ -33,6 +34,8 @@ let volume = 0.15
 let radioMode = false
 let shuffle = false
 let lastMsgTimestamp = 0
+
+let guildStates = {}
 
 class ResponseCapturer {
   constructor (options) {
@@ -97,14 +100,20 @@ bot.on('message', (msg) => {
   // Cancels messages if user is bot
   if (msg.author.bot) return
 
-  // Response Capturer state
-  let responseState = gh.getGuildResponseCapturer(msg.guild.id)
+  let guildId = msg.guild.id
+
+  // Set up guild state
+  if (!guildStates[guildId]) guildStates[guildId] = new GuildHandler(guildId, () => { delete guildStates[guildId] })
+  let guildHandler = guildStates[guildId]
+  let state = guildHandler.getGuildState()
+  let responseState = guildHandler.getGuildResponseCapturer()
+  let searchResultState = guildHandler.getGuildSearchResults()
 
   // Response Capturer for user prompts
   if (responseState.handler) {
     if (responseState.handler.senderID !== msg.member.id) return
     if (responseState.count === 3) {
-      gh.resetResponseCapturer(msg.guild.id)
+      guildHandler.resetResponseCapturer(msg.guild.id)
       responseState.handler.removeTimeout()
       mh.logChannel(mchannel, 'info', 'Cancelling response... [Too many responses]')
       return
@@ -112,13 +121,13 @@ bot.on('message', (msg) => {
 
     try {
       if (msg.content.toUpperCase() === 'QUIT') {
-        gh.resetResponseCapturer(msg.guild.id)
+        guildHandler.resetResponseCapturer(msg.guild.id)
         responseState.handler.removeTimeout()
         mh.logChannel(mchannel, 'info', 'Cancelling response...')
         return
       } else if (responseState.handler.choices[parseInt(msg.content) - 1]) {
         responseState.handler.registerResult(parseInt(msg.content))
-        gh.resetResponseCapturer(msg.guild.id)
+        guildHandler.resetResponseCapturer(msg.guild.id)
         return
       } else {
         responseState.count++
@@ -146,9 +155,6 @@ bot.on('message', (msg) => {
   let cmd = fullMsgArray[0].slice(1, fullMsgArray[0].length).toUpperCase()
   let args = fullMsgArray.slice(1, fullMsgArray.length)
 
-  // Define search result state
-  let searchResultState = gh.getGuildSearchResults(msg.guild.id)
-
   // Voice Functions
   function queueTrack (sourceID) {
     addTrack(sourceID, msg.member, false)
@@ -163,7 +169,7 @@ bot.on('message', (msg) => {
         if (err === 'EMPTY_VID') mh.logChannel(mchannel, 'err', 'This video appears to be invalid / empty. Please double check the URL.')
         else {
           mh.logConsole('err', err)
-          mh.logChannel(mchannel, 'err', 'An unknown error has occured while parsing the link through the YouTube API. Please make sure the URL is valid. If all else fails, contact @CF12#1240.')
+          mh.logChannel(mchannel, 'err', 'An unknown error has occured while parsing the link througuildHandler the YouTube API. Please make sure the URL is valid. If all else fails, contact @CF12#1240.')
         }
       })
   }
@@ -182,7 +188,7 @@ bot.on('message', (msg) => {
         if (err === 'EMPTY_VID') mh.logChannel(mchannel, 'err', 'This video appears to be invalid / empty. Please double check the URL.')
         else {
           mh.logConsole('err', err)
-          mh.logChannel(mchannel, 'err', 'An unknown error has occured while parsing the link through the YouTube API. Please make sure the URL is valid. If all else fails, contact @CF12#1240.')
+          mh.logChannel(mchannel, 'err', 'An unknown error has occured while parsing the link througuildHandler the YouTube API. Please make sure the URL is valid. If all else fails, contact @CF12#1240.')
         }
       })
   }
@@ -272,7 +278,7 @@ bot.on('message', (msg) => {
           queuePlaylist(data.id)
           break
         case 'hybrid':
-          gh.setGuildResponseCapturer(msg.guild.id, {
+          guildHandler.setGuildResponseCapturer({
             count: 0,
             handler: new ResponseCapturer({
               msg: 'Hybrid Video / Playlist link detected. Please choose the desired action:',
@@ -280,7 +286,7 @@ bot.on('message', (msg) => {
               senderID: member.id,
               senderTag: member.toString(),
               timeout: setTimeout(() => {
-                gh.resetResponseCapturer(msg.guild.id)
+                guildHandler.resetResponseCapturer(msg.guild.id)
                 mh.logChannel(mchannel, 'info', 'Cancelling response... [Timed out]')
               }, 10000),
               onCapture: (res) => {
@@ -296,7 +302,7 @@ bot.on('message', (msg) => {
             })
           })
 
-          gh.getGuildResponseCapturer(msg.guild.id).handler.sendMsg(mchannel)
+          guildHandler.getGuildResponseCapturer(msg.guild.id).handler.sendMsg(mchannel)
           break
         default:
           throw new Error('Invalid queue type')
@@ -314,10 +320,10 @@ bot.on('message', (msg) => {
     else {
       yth.search(args.join('+'), 5)
       .then((res) => {
-        gh.setGuildSearchResults(msg.guild.id, res.items)
+        guildHandler.setGuildSearchResults(res.items)
         let options = {
           title: ':mag: ❱❱ SEARCH RESULTS',
-          color: 16007746, // Light Red
+          color: 16007746, // LiguildHandlert Red
           description: `List of results for search phrase: **${args.join(' ')}**`,
           fields: [],
           footer: {
