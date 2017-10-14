@@ -1,6 +1,6 @@
 const req = require('req-fast')
 
-module.exports = class YTApiHandler {
+class YTApiHandler {
   constructor (apiKey) {
     this.apiKey = apiKey
     this.options = {
@@ -68,3 +68,5 @@ module.exports = class YTApiHandler {
     })
   }
 }
+
+module.exports = YTApiHandler

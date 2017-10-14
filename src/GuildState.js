@@ -1,91 +1,68 @@
 class GuildState {
-  constructor (id, callback) {
+  constructor (id) {
     this.id = id
     this.timeout = undefined
-    this.callback = callback
-    this.state = {
-      responseCapture: {
-        count: 0,
-        handler: undefined
-      },
 
-      voiceData: {
-        channel: null
-      },
-
-      searchResults: []
+    this.searchResults = []
+    this.responseCapture = {
+      count: 0,
+      handler: undefined
     }
+
+    this.lastMsgTimestamp = 0
 
     this.resetTimeout()
   }
 
   resetTimeout () {
-    if (this.timeout) clearTimeout(this.state.timeout)
-    this.timeout = setTimeout(this.callback, 300000)
+    if (this.timeout) clearTimeout(this.timeout)
+    this.timeout = setTimeout(this.clearTempData, 300000)
   }
 
-  resetState () {
-    this.state = {
-      responseCapture: {
-        count: 0,
-        handler: undefined
-      },
-
-      voiceData: {
-        channel: null
-      },
-
-      searchResults: [],
-      timeout: this.resetTimeout()
+  clearTempData () {
+    this.searchResults = []
+    this.responseCapture = {
+      count: 0,
+      handler: undefined
     }
   }
 
-  // Guild State Getters
-  getGuildState () {
-    this.resetTimeout()
-    return this.state
+  checkIfPrunable () {
+    if (!this.searchResults && !this.responseCapture.handler) return true
+    else return false
   }
 
+  // Guild State Getters
   getGuildSearchResults () {
     this.resetTimeout()
-    return this.state.searchResults
+    return this.searchResults
   }
 
   getGuildResponseCapturer () {
     this.resetTimeout()
-    return this.state.responseCapture
+    return this.responseCapture
   }
 
   getGuildVoiceData () {
     this.resetTimeout()
-    return this.state.voiceData
+    return this.voiceData
   }
 
   // Guild State Setters
-  setGuildState (state) {
-    this.resetTimeout()
-    this.state = state
-  }
-
   setGuildSearchResults (state) {
     this.resetTimeout()
-    this.state.searchResults = state
+    this.searchResults = state
   }
 
   setGuildResponseCapturer (state) {
     this.resetTimeout()
-    this.state.responseCapture = state
-  }
-
-  setGuildVoiceData (state) {
-    this.resetTimeout()
-    this.state.voiceData = state
+    this.responseCapture = state
   }
 
   // State Modifiers
   resetResponseCapturer () {
     this.resetTimeout()
-    this.state.responseCapture = {
+    this.responseCapture = {
       count: 0,
       handler: undefined
     }
