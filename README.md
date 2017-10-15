@@ -46,6 +46,9 @@
   - `node src/bot.js`
 ##### 8. Profit?
 
+## Issues?
+Please report any bugs or issues under the repo's issues tab. It'd be greatly appreciated!
+
 ## Coding Standards
 This project uses the Standard JS Coding Style. Most of my Javascript projects are coded with the Standard JS Coding Style.
 You can learn more about the project here: https://standardjs.com/
