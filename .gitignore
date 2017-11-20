@@ -46,3 +46,4 @@ jspm_packages
 config/config.json
 config/blacklist.json
 testing
+database
