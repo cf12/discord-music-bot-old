@@ -23,10 +23,10 @@
 
 ## Installation:
 ### Debian 8 / Ubuntu 16.04 LTS:
-##### 1. Install git, make, FFMPEG, and node-gyp:
+##### 1. Install base dependencies:
   ```bash
   sudo apt-get update
-  sudo apt-get install git make build-essential g++
+  sudo apt-get install git make ffmpeg node-gyp build-essential g++
   ```
 ##### 2. Install NodeJS:
   - Using `nvm` from https://github.com/creationix/nvm
