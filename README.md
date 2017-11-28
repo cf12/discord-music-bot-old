@@ -26,7 +26,7 @@
 ##### 1. Install git, make, FFMPEG, and node-gyp:
   ```bash
   sudo apt-get update
-  sudo apt-get install git make
+  sudo apt-get install git make build-essential g++
   ```
 ##### 2. Install NodeJS:
   - Using `nvm` from https://github.com/creationix/nvm
