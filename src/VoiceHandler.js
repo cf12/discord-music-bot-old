@@ -192,8 +192,8 @@ class VoiceHandler {
   }
 
   setVolume (volume) {
-    if (this.dispatcher) this.dispatcher.setVolume(this.volume)
     this.volume = volume * 0.005
+    if (this.dispatcher) this.dispatcher.setVolume(this.volume)
   }
 
   setPrevPlayed (data) {
