@@ -1,7 +1,7 @@
 # Music Bot
 ### Music bot is a simple discord bot built on the *Discord.JS API* for discord.
 
-#### **STATUS: STABLE, BUT STILL BEING WORKED ON**
+#### **STATUS: NO UPDATES FOR NOW, BUT STABLE FOR THE MOST PART**
 
 ## Features:
  - YouTube Video and Playlist support
